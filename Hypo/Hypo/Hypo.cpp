@@ -6,7 +6,8 @@ namespace Hypo
 {
     // Constants.
     constexpr int H_EOF = -1;
-    constexpr int MAX_ADDR = 2499;
+    constexpr int H_MAX_ADDR = 2499;
+    constexpr int H_TTL = 200;
 
     enum H_ERROR_CODE
     {
@@ -27,7 +28,7 @@ namespace Hypo
     word clock;
 
     // Memory address register.
-    word* r_mar;
+    word r_mar;
 
     // Memory buffer register.
     word r_mbr;
@@ -42,10 +43,22 @@ namespace Hypo
     word r_psr;
 
     // Stack pointer.
-    word* r_sp;
+    word r_sp;
 
     // Program counter.
-    word* r_pc;
+    word r_pc;
+
+    bool AddressInRange(int addr)
+    {
+        if (addr > H_MAX_ADDR || addr < -1)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
 
     // Initializes Hypo machine.
     void InitializeSystem()
@@ -81,10 +94,9 @@ namespace Hypo
             return E_FS_CANT_OPEN;
         }
 
-        int16_t h_addr, h_content;
+        int32_t h_addr, h_content;
         while (i_prog >> h_addr >> h_content)
         {
-            std::cout << h_addr << "\n";
             if (h_addr == H_EOF)
             {
                 std::cout << "Program successfully loaded into memory.";
@@ -92,7 +104,7 @@ namespace Hypo
             }
             else
             {
-                if (h_addr > MAX_ADDR || h_addr < -1)
+                if (AddressInRange(h_addr))
                 {
                     std::cout << "Invalid address in program: " << h_addr;
                     return E_INVALID_ADDR;
@@ -104,6 +116,30 @@ namespace Hypo
             }
         }
         return E_NO_EOF;
+    }
+
+    word CPU()
+    {
+        word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_val, op2_addr, op2_val, result;
+        long time_left = H_TTL;
+        bool should_halt = false;
+
+        while (!should_halt && time_left > 0)
+        {
+            if (AddressInRange(r_pc))
+            {
+                r_mar = r_pc++;
+                r_mbr = memory[r_mar];
+            }
+            else
+            {
+                std::cout << "Invalid address for program counter: " << r_pc;
+                return E_INVALID_ADDR;
+            }
+
+            r_ir = r_mbr;
+            // ...
+        }
     }
 }
 
