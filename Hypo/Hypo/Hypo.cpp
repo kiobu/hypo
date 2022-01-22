@@ -4,14 +4,19 @@
 
 namespace Hypo
 {
-    enum H_ERROR
-    {
-        E_FS_CANT_OPEN = 0x01,
-        E_INVALID_ADDR = 0x02,
-        E_NO_EOF = 0x04,
-        E_INVALID_PC = 0x08
-    };
+    // Constants.
+    constexpr int H_EOF = -1;
+    constexpr int MAX_ADDR = 2499;
 
+    enum H_ERROR_CODE
+    {
+        OK = 0x01,
+        E_FS_CANT_OPEN = 0x02,
+        E_INVALID_ADDR = 0x04,
+        E_NO_EOF = 0x08,
+        E_INVALID_PC = 0x016
+    };
+    
     // Words are signed 32-bit and should accomodate 6 digits.
     typedef long word;
 
@@ -68,14 +73,36 @@ namespace Hypo
     // Loads a Hypo script.
     int AbsoluteLoader(std::string filename)
     {
-        std::ifstream input_stream(filename);
+        std::ifstream i_prog(filename);
 
-        if (!input_stream)
+        if (!i_prog)
         {
-            std::cerr << E_FS_CANT_OPEN;
+            std::cerr << "Cannot open file: " << filename;
             return E_FS_CANT_OPEN;
         }
 
+        int16_t h_addr, h_content;
+        while (i_prog >> h_addr >> h_content)
+        {
+            std::cout << h_addr << "\n";
+            if (h_addr == H_EOF)
+            {
+                std::cout << "Program successfully loaded into memory.";
+                return h_content;
+            }
+            else
+            {
+                if (h_addr > MAX_ADDR || h_addr < -1)
+                {
+                    std::cout << "Invalid address in program: " << h_addr;
+                    return E_INVALID_ADDR;
+                }
+                else
+                {
+                    memory[h_addr] = h_content;
+                }
+            }
+        }
         return E_NO_EOF;
     }
 }
@@ -84,6 +111,7 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::AbsoluteLoader("dummy.txt");
+    Hypo::AbsoluteLoader("../program.txt");
+
     return 0xFF;
 }
