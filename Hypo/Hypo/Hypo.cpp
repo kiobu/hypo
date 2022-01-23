@@ -126,7 +126,7 @@ namespace Hypo
 
         while (!should_halt && time_left > 0)
         {
-            if (AddressInRange(r_pc))
+            if (!AddressInRange(r_pc))
             {
                 r_mar = r_pc++;
                 r_mbr = memory[r_mar];
