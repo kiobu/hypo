@@ -14,14 +14,15 @@ namespace Hypo
         OK = 0x01,
         E_FS_CANT_OPEN = 0x02,
         E_INVALID_ADDR = 0x04,
-        E_NO_EOF = 0x08,
-        E_INVALID_PC = 0x016
+        E_INVALID_PC = 0x08,
+        E_NO_EOF = 0x10,
+        E_INVALID_PC = 0x20
     };
     
     // Words are signed 32-bit and should accomodate 6 digits.
     typedef long word;
 
-    // Memory.
+    // Memory, addresses are simply integers 1-5000.
     word memory[10000];
 
     // Clock time in ms.
@@ -99,8 +100,22 @@ namespace Hypo
         {
             if (h_addr == H_EOF)
             {
-                std::cout << "Program successfully loaded into memory.";
-                return h_content;
+                // The operand for opcode -1 is the first address to be
+                // executed from the EOM, so we should make sure it is 
+                // pointing to a valid address.
+
+                auto& entrypoint = h_content;
+
+                if (AddressInRange(entrypoint))
+                {
+                    std::cout << "Program successfully loaded into memory.";
+                    return h_content;
+                }
+                else
+                {
+                    std::cout << "Invalid program counter: " << h_content;
+                    return E_INVALID_PC;
+                }
             }
             else
             {
