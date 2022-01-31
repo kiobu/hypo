@@ -12,13 +12,13 @@ namespace Hypo
     enum H_ERROR_CODE
     {
         OK = 0x01,
-        E_FS_CANT_OPEN = 0x02,
-        E_INVALID_ADDR = 0x04,
-        E_INVALID_PC = 0x08,
-        E_NO_EOF = 0x10,
-        E_INVALID_MODE = 0x20,
-        E_INVALID_GPR = 0x40,
-        E_INVALID_OPCODE = 0x80
+        E_FS_CANT_OPEN = -0x01,
+        E_INVALID_ADDR = -0x02,
+        E_INVALID_PC = -0x04,
+        E_NO_EOF = -0x08,
+        E_INVALID_MODE = -0x10,
+        E_INVALID_GPR = -0x20,
+        E_INVALID_OPCODE = -0x40
     };
 
     enum H_OPCODE
@@ -122,7 +122,6 @@ namespace Hypo
                 // The operand for opcode -1 is the first address to be
                 // executed from the EOM, so we should make sure it is 
                 // pointing to a valid address.
-
                 auto& entrypoint = h_content;
 
                 if (AddressInRange(entrypoint))
