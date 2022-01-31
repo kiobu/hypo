@@ -1,4 +1,7 @@
+*.doc
+*.docx
 .vs
+Hypo/.idea
 
 # Prerequisites
 *.d

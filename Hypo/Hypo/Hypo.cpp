@@ -147,7 +147,7 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::AbsoluteLoader("../program.txt");
+    Hypo::AbsoluteLoader("../program.eom");
 
     return 0xFF;
 }
