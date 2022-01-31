@@ -1,2 +1,8 @@
 ﻿  Hypo.cpp
+V:\hypo\Hypo\Hypo\Hypo.cpp(157,98): warning C4101: 'result': unreferenced local variable
+V:\hypo\Hypo\Hypo\Hypo.cpp(157,79): warning C4101: 'op2_addr': unreferenced local variable
+V:\hypo\Hypo\Hypo\Hypo.cpp(157,89): warning C4101: 'op2_val': unreferenced local variable
+V:\hypo\Hypo\Hypo\Hypo.cpp(157,70): warning C4101: 'op1_val': unreferenced local variable
+V:\hypo\Hypo\Hypo\Hypo.cpp(157,60): warning C4101: 'op1_addr': unreferenced local variable
+V:\hypo\Hypo\Hypo\Hypo.cpp(254): warning C4715: 'Hypo::CPU': not all control paths return a value
   Hypo.vcxproj -> V:\hypo\Hypo\x64\Debug\Hypo.exe

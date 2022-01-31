@@ -16,7 +16,26 @@ namespace Hypo
         E_INVALID_ADDR = 0x04,
         E_INVALID_PC = 0x08,
         E_NO_EOF = 0x10,
-        E_INVALID_PC = 0x20
+        E_INVALID_MODE = 0x20,
+        E_INVALID_GPR = 0x40,
+        E_INVALID_OPCODE = 0x80
+    };
+
+    enum H_OPCODE
+    {
+        HALT = 0,
+        ADD = 1,
+        SUBTRACT = 2,
+        MULTIPLY = 3,
+        DIVIDE = 4,
+        MOVE = 5,
+        BRANCH = 6,
+        BRANCH_ON_MINUS = 7,
+        BRANCH_ON_PLUS = 8,
+        BRANCH_ON_ZERO = 9,
+        PUSH = 10,
+        POP = 11,
+        SYSCALL = 12
     };
     
     // Words are signed 32-bit and should accomodate 6 digits.
@@ -121,12 +140,12 @@ namespace Hypo
             {
                 if (AddressInRange(h_addr))
                 {
-                    std::cout << "Invalid address in program: " << h_addr;
-                    return E_INVALID_ADDR;
+                    memory[h_addr] = h_content;
                 }
                 else
                 {
-                    memory[h_addr] = h_content;
+                    std::cout << "Invalid address in program: " << h_addr;
+                    return E_INVALID_ADDR;
                 }
             }
         }
@@ -141,7 +160,7 @@ namespace Hypo
 
         while (!should_halt && time_left > 0)
         {
-            if (!AddressInRange(r_pc))
+            if (AddressInRange(r_pc))
             {
                 r_mar = r_pc++;
                 r_mbr = memory[r_mar];
@@ -153,7 +172,84 @@ namespace Hypo
             }
 
             r_ir = r_mbr;
-            // ...
+
+            long _rem;
+            
+            // Break EOM format down into opcodes, operand modes, and GPR dests.
+            opcode = r_ir / 10000;
+            _rem = r_ir % 10000;
+
+            op1_mode = _rem / 1000;
+            _rem = _rem % 1000;
+
+            op1_gpr = _rem / 100;
+            _rem = _rem % 100;
+
+            op2_mode = _rem / 10;
+            _rem = _rem % 10;
+
+            op2_gpr = _rem;
+
+            if (op1_mode < 0 || op1_mode > 6 || op2_mode < 0 || op2_mode > 6)
+            {
+                std::cout << "Invalid mode for operand.\n" << "-- First operand GPR: " << op1_gpr << "\n-- Second operand GPR: " << op2_gpr;
+                return E_INVALID_MODE;
+            }
+
+            if (op1_gpr < 0 || op1_gpr > 7 || op2_gpr < 0 || op2_gpr > 7)
+            {
+                std::cout << "Invalid GPR for operand.\n" << "-- First operand GPR: " << op1_gpr << "\n-- Second operand GPR: " << op2_gpr;
+                return E_INVALID_GPR;
+            }
+
+            switch (opcode)
+            {
+            case H_OPCODE::HALT:
+                should_halt = true;
+                clock += 12;
+                time_left -= 12;
+                break;
+
+            case H_OPCODE::ADD:
+                // ...
+
+            case H_OPCODE::SUBTRACT:
+                // ...
+
+            case H_OPCODE::MULTIPLY:
+                // ...
+
+            case H_OPCODE::DIVIDE:
+                // ...
+
+            case H_OPCODE::MOVE:
+                // ...
+
+            case H_OPCODE::BRANCH:
+                // ...
+
+            case H_OPCODE::BRANCH_ON_MINUS:
+                // ...
+
+            case H_OPCODE::BRANCH_ON_PLUS:
+                // ...
+
+            case H_OPCODE::BRANCH_ON_ZERO:
+                // ...
+
+            case H_OPCODE::PUSH:
+                // ...
+
+            case H_OPCODE::POP:
+                // ...
+
+            case H_OPCODE::SYSCALL:
+                // ...
+
+            default:
+                std::cout << "Invalid opcode: " << opcode;
+                return E_INVALID_OPCODE;
+            }
         }
     }
 }
@@ -163,6 +259,6 @@ int main()
 {
     Hypo::InitializeSystem();
     Hypo::AbsoluteLoader("../program.eom");
-
+    Hypo::CPU();
     return 0xFF;
 }
