@@ -151,6 +151,17 @@ namespace Hypo
         return E_NO_EOF;
     }
 
+    word FetchOperand(word op_mode, word op_reg, word* op_addr, word* op_value)
+    {
+        switch (op_mode)
+        {
+        case 1:
+            *op_addr = -2;
+            *op_value = r_gpr[op_reg];
+            break;
+        }
+    }
+
     word CPU()
     {
         word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_val, op2_addr, op2_val, result;
