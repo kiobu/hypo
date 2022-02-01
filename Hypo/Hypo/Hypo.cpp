@@ -12,7 +12,7 @@ namespace Hypo
     constexpr int H_MAX_PROGRAM_ADDR = 2499;
     constexpr int H_MAX_USER_FREE_ADDR = 4499;
     constexpr int H_MAX_MEM_ADDR = 9999;
-    constexpr int H_TTL = 200;
+    constexpr int H_TTL = 2000;
 
     enum H_ERROR_CODE
     {
@@ -642,7 +642,7 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program1.eom");
+    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program2.eom");
 
     Hypo::r_pc = eom_entrypoint;
 
