@@ -184,7 +184,7 @@ namespace Hypo
     {
         using namespace std;
 
-        cout << str << endl;
+        cout << endl << str << endl;
 
         // Checks for invalid starting location, ending location, or size. Checks for valid memory dump range between 0-9999.
         if (start_addr < 0 || start_addr > H_MAX_MEM_ADDR || size < 1 || start_addr + size > H_MAX_MEM_ADDR)
@@ -240,7 +240,7 @@ namespace Hypo
         case H_OPMODE::REGISTER_DEF:
             *op_addr = r_gpr[op_reg];
 
-            if (UserFreeAddressInRange(*op_addr))
+            if (ProgramAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -248,6 +248,7 @@ namespace Hypo
             {
                 std::cout << "Invalid address in GPR: " << op_reg;
                 std::cout << "\n-- Address: " << *op_addr;
+                std::cout << "\n-- PC: " << r_pc;
                 return E_INVALID_ADDR_IN_GPR;
             }
 
@@ -255,7 +256,7 @@ namespace Hypo
         case H_OPMODE::AUTO_INC:
             *op_addr = r_gpr[op_reg];
 
-            if (UserFreeAddressInRange(*op_addr))
+            if (ProgramAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -263,6 +264,7 @@ namespace Hypo
             {
                 std::cout << "Invalid address in GPR: " << op_reg;
                 std::cout << "\n-- Address: " << *op_addr;
+                std::cout << "\n-- PC: " << r_pc;
                 return E_INVALID_ADDR_IN_GPR;
             }
 
@@ -273,7 +275,7 @@ namespace Hypo
             --r_gpr[op_reg];
             *op_addr = r_gpr[op_reg];
 
-            if (UserFreeAddressInRange(*op_addr))
+            if (ProgramAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -281,6 +283,7 @@ namespace Hypo
             {
                 std::cout << "Invalid address in GPR: " << op_reg;
                 std::cout << "\n-- Address: " << *op_addr;
+                std::cout << "\n-- PC: " << r_pc;
                 return E_INVALID_ADDR_IN_GPR;
             }
 
@@ -288,7 +291,7 @@ namespace Hypo
         case H_OPMODE::DIRECT:
             *op_addr = memory[r_pc++];
 
-            if (UserFreeAddressInRange(*op_addr))
+            if (ProgramAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -296,6 +299,10 @@ namespace Hypo
             {
                 std::cout << "Invalid address in GPR: " << op_reg;
                 std::cout << "\n-- Address: " << *op_addr;
+                std::cout << "\n-- PC: " << r_pc;
+
+                DumpMemory("DIRECT MODE DUMP", 0, 100);
+
                 return E_INVALID_ADDR_IN_GPR;
             }
 
@@ -635,7 +642,7 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program.eom");
+    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program2.eom");
 
     Hypo::r_pc = eom_entrypoint;
 
