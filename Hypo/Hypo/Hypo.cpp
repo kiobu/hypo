@@ -642,11 +642,11 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program2.eom");
+    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program1.eom");
 
     Hypo::r_pc = eom_entrypoint;
 
     Hypo::CPU();
 
-    return 0xFF;
+    Hypo::DumpMemory("END OF CPU CYCLE", 1, 100);
 }
