@@ -180,96 +180,6 @@ namespace Hypo
         return E_NO_EOF;
     }
 
-    word FetchOperand(word op_mode, word op_reg, word* op_addr, word* op_value)
-    {
-        switch (op_mode)
-        {
-        case H_OPMODE::REGISTER:
-            *op_addr = -2;
-            *op_value = r_gpr[op_reg];
-
-            break;
-        case H_OPMODE::REGISTER_DEF:
-            *op_addr = r_gpr[op_reg];
-
-            if (UserFreeAddressInRange(*op_addr))
-            {
-                *op_value = memory[*op_addr];
-            }
-            else
-            {
-                std::cout << "Invalid address in GPR: " << op_reg;
-                return E_INVALID_ADDR_IN_GPR;
-            }
-
-            break;
-        case H_OPMODE::AUTO_INC:
-            *op_addr = r_gpr[op_reg];
-
-            if (UserFreeAddressInRange(*op_addr))
-            {
-                *op_value = memory[*op_addr];
-            }
-            else
-            {
-                std::cout << "Invalid address in GPR: " << op_reg;
-                return E_INVALID_ADDR_IN_GPR;
-            }
-
-            r_gpr[op_reg]++;
-
-            break;
-        case H_OPMODE::AUTO_DEC:
-            --r_gpr[op_reg];
-            *op_addr = r_gpr[op_reg];
-
-            if (UserFreeAddressInRange(*op_addr))
-            {
-                *op_value = memory[*op_addr];
-            }
-            else
-            {
-                std::cout << "Invalid address in GPR: " << op_reg;
-                return E_INVALID_ADDR_IN_GPR;
-            }
-
-            break;
-        case H_OPMODE::DIRECT:
-            *op_addr = memory[r_pc++];
-
-            if (UserFreeAddressInRange(*op_addr))
-            {
-                *op_value = memory[*op_addr];
-            }
-            else
-            {
-                std::cout << "Invalid address in PC: " << op_reg;
-                return E_INVALID_ADDR_IN_GPR;
-            }
-
-            break;
-
-        case H_OPMODE::IMMEDIATE:
-            if (ProgramAddressInRange(r_pc))
-            {
-                *op_addr = -2;
-                *op_value = memory[r_pc++];
-            }
-            else
-            {
-                std::cout << "Invalid address in PC: " << op_reg;
-                return E_INVALID_ADDR_IN_GPR;
-            }
-
-            break;
-        default:
-            std::cout << "Invalid opmode: " << op_mode;
-            return E_INVALID_MODE;
-        }
-
-        return OK;
-    }
-
     void DumpMemory(std::string str, word start_addr, word size)
     {
         using namespace std;
@@ -294,7 +204,7 @@ namespace Hypo
             while (addr <= end_address)
             {
                 // Print starting memory location in the row.
-                cout << left << setw(11) << addr; 
+                cout << left << setw(11) << addr;
 
                 // Prints all values at the desired memory location until the end address is reached.
                 for (int i = 0; i < 10; i++)
@@ -316,6 +226,100 @@ namespace Hypo
             cout << "Clock: " << clock << endl;
             cout << "PSR: " << r_psr << endl;
         }
+    }
+
+    word FetchOperand(word op_mode, word op_reg, word* op_addr, word* op_value)
+    {
+        switch (op_mode)
+        {
+        case H_OPMODE::REGISTER:
+            *op_addr = -2;
+            *op_value = r_gpr[op_reg];
+
+            break;
+        case H_OPMODE::REGISTER_DEF:
+            *op_addr = r_gpr[op_reg];
+
+            if (UserFreeAddressInRange(*op_addr))
+            {
+                *op_value = memory[*op_addr];
+            }
+            else
+            {
+                std::cout << "Invalid address in GPR: " << op_reg;
+                std::cout << "\n-- Address: " << *op_addr;
+                return E_INVALID_ADDR_IN_GPR;
+            }
+
+            break;
+        case H_OPMODE::AUTO_INC:
+            *op_addr = r_gpr[op_reg];
+
+            if (UserFreeAddressInRange(*op_addr))
+            {
+                *op_value = memory[*op_addr];
+            }
+            else
+            {
+                std::cout << "Invalid address in GPR: " << op_reg;
+                std::cout << "\n-- Address: " << *op_addr;
+                return E_INVALID_ADDR_IN_GPR;
+            }
+
+            r_gpr[op_reg]++;
+
+            break;
+        case H_OPMODE::AUTO_DEC:
+            --r_gpr[op_reg];
+            *op_addr = r_gpr[op_reg];
+
+            if (UserFreeAddressInRange(*op_addr))
+            {
+                *op_value = memory[*op_addr];
+            }
+            else
+            {
+                std::cout << "Invalid address in GPR: " << op_reg;
+                std::cout << "\n-- Address: " << *op_addr;
+                return E_INVALID_ADDR_IN_GPR;
+            }
+
+            break;
+        case H_OPMODE::DIRECT:
+            *op_addr = memory[r_pc++];
+
+            if (UserFreeAddressInRange(*op_addr))
+            {
+                *op_value = memory[*op_addr];
+            }
+            else
+            {
+                std::cout << "Invalid address in GPR: " << op_reg;
+                std::cout << "\n-- Address: " << *op_addr;
+                return E_INVALID_ADDR_IN_GPR;
+            }
+
+            break;
+
+        case H_OPMODE::IMMEDIATE:
+            if (ProgramAddressInRange(r_pc))
+            {
+                *op_addr = -2;
+                *op_value = memory[r_pc++];
+            }
+            else
+            {
+                std::cout << "Invalid address in PC: " << op_reg;
+                return E_INVALID_ADDR_IN_GPR;
+            }
+
+            break;
+        default:
+            std::cout << "Invalid opmode: " << op_mode;
+            return E_INVALID_MODE;
+        }
+
+        return OK;
     }
 
     word CPU()
@@ -521,7 +525,7 @@ namespace Hypo
                     }
                     else
                     {
-                        std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                        std::cout << "Invalid address for program counter on BRANCH_ON_MINUS: " << r_pc;
                         return E_INVALID_PC;
                     }
                 }
@@ -548,7 +552,7 @@ namespace Hypo
                     }
                     else
                     {
-                        std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                        std::cout << "Invalid address for program counter on BRANCH_ON_PLUS: " << r_pc;
                         return E_INVALID_PC;
                     }
                 }
@@ -563,12 +567,7 @@ namespace Hypo
                 break;
             case H_OPCODE::BRANCH_ON_ZERO:
                 std::cout << "BO0" << std::endl;
-                // ...
-
-                break;
-            case H_OPCODE::PUSH:
-                std::cout << "Push" << std::endl;
-
+                
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
@@ -580,7 +579,7 @@ namespace Hypo
                     }
                     else
                     {
-                        std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                        std::cout << "Invalid address for program counter on BRANCH_ON_ZERO: " << r_pc;
                         return E_INVALID_PC;
                     }
                 }
@@ -593,6 +592,11 @@ namespace Hypo
                 time_left -= 4;
 
                 break;
+            case H_OPCODE::PUSH:
+                std::cout << "Push" << std::endl;
+                // ...
+
+                break;
             case H_OPCODE::POP:
                 std::cout << "Pop" << std::endl;
                 // ...
@@ -600,7 +604,23 @@ namespace Hypo
                 break;
             case H_OPCODE::SYSCALL:
                 std::cout << "Syscall" << std::endl;
-                // ...
+                
+                if (ProgramAddressInRange(r_pc))
+                {
+                    status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                    if (status < 0) { return status; }
+
+                    // TODO: Implement syscalls.
+                    status = 100;
+                }
+                else
+                {
+                    std::cout << "Invalid address for program counter on SYSCALL: " << r_pc;
+                    return E_INVALID_PC;
+                }
+
+                clock += 12;
+                time_left -= 12;
 
                 break;
             default:
@@ -620,4 +640,6 @@ int main()
     Hypo::r_pc = eom_entrypoint;
 
     Hypo::CPU();
+
+    return 0xFF;
 }
