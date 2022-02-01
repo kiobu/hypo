@@ -2,6 +2,8 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <math.h>
+#include <assert.h>
 
 namespace Hypo
 {
@@ -44,6 +46,7 @@ namespace Hypo
 
     enum H_OPMODE
     {
+        NO_OP = 0,
         REGISTER = 1,
         REGISTER_DEF = 2,
         AUTO_INC = 3,
@@ -240,21 +243,21 @@ namespace Hypo
             }
             else
             {
-                std::cout << "Invalid address in GPR: " << op_reg;
+                std::cout << "Invalid address in PC: " << op_reg;
                 return E_INVALID_ADDR_IN_GPR;
             }
 
             break;
 
         case H_OPMODE::IMMEDIATE:
-            if (UserFreeAddressInRange(r_pc))
+            if (ProgramAddressInRange(r_pc))
             {
                 *op_addr = -2;
                 *op_value = memory[r_pc++];
             }
             else
             {
-                std::cout << "Invalid address in GPR: " << op_reg;
+                std::cout << "Invalid address in PC: " << op_reg;
                 return E_INVALID_ADDR_IN_GPR;
             }
 
@@ -278,7 +281,6 @@ namespace Hypo
         {
             cout << "Invalid parameter.";
         }
-
         else
         {
             cout << setw(12) << "\nGPRs: " << setw(7) << "G0" << setw(7) << "G1" << setw(7) << "G2" << setw(7) << "G3" << setw(7) << "G4" << setw(7) << "G5" << setw(7) << "G6" << setw(7) << "G7" << setw(7) << "SP" << setw(7) << "PC" << endl; //Display GPR header.
@@ -311,16 +313,18 @@ namespace Hypo
                 cout << "\n";
             }
 
-            cout << "Clock: " << clock << endl; //Clock value displayed.
-            cout << "PSR: " << r_psr << endl; //PSR value displayed.
+            cout << "Clock: " << clock << endl;
+            cout << "PSR: " << r_psr << endl;
         }
     }
 
     word CPU()
     {
-        word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_val, op2_addr, op2_val, result;
+        word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_value, op2_addr, op2_value, result;
         long time_left = H_TTL;
         bool should_halt = false;
+
+        word status;
 
         while (!should_halt && time_left > 0)
         {
@@ -337,30 +341,42 @@ namespace Hypo
 
             r_ir = r_mbr;
 
+            std::cout << "r_ir: " << r_ir << std::endl;
+
             long _rem;
             
             // Break EOM format down into opcodes, operand modes, and GPR dests.
             opcode = r_ir / 10000;
             _rem = r_ir % 10000;
 
+            std::cout << "Opcode: " << opcode << std::endl;
+
             op1_mode = _rem / 1000;
             _rem = _rem % 1000;
+
+            std::cout << "op1 mode: " << op1_mode << std::endl;
 
             op1_gpr = _rem / 100;
             _rem = _rem % 100;
 
+            std::cout << "op1 GPR: " << op1_gpr << std::endl;
+
             op2_mode = _rem / 10;
             _rem = _rem % 10;
 
+            std::cout << "op2 mode: " << op2_mode << std::endl;
+
             op2_gpr = _rem;
 
-            if (op1_mode < H_OPMODE::REGISTER || op1_mode > H_OPMODE::IMMEDIATE || op2_mode < H_OPMODE::REGISTER || op2_mode > H_OPMODE::IMMEDIATE)
+            std::cout << "op2 GPR: " << op2_gpr << std::endl;
+
+            if (op1_mode < H_OPMODE::NO_OP || op1_mode > H_OPMODE::IMMEDIATE || op2_mode < H_OPMODE::NO_OP || op2_mode > H_OPMODE::IMMEDIATE)
             {
-                std::cout << "Invalid mode for operand.\n" << "-- First operand GPR: " << op1_gpr << "\n-- Second operand GPR: " << op2_gpr;
+                std::cout << "Invalid mode for operand.\n" << "-- First operand mode: " << op1_mode << "\n-- Second operand mode: " << op2_mode;
                 return E_INVALID_MODE;
             }
 
-            size_t _gpr_len = sizeof(r_gpr) / sizeof(r_gpr[0]);
+            size_t _gpr_len = (sizeof(r_gpr) / sizeof(r_gpr[0])) - 1;
 
             if (op1_gpr < 0 || op1_gpr > _gpr_len || op2_gpr < 0 || op2_gpr > _gpr_len)
             {
@@ -371,6 +387,8 @@ namespace Hypo
             switch (opcode)
             {
             case H_OPCODE::HALT:
+                std::cout << "Halt" << std::endl;
+
                 should_halt = true;
                 clock += 12;
                 time_left -= 12;
@@ -378,41 +396,213 @@ namespace Hypo
                 break;
 
             case H_OPCODE::ADD:
-                // ...
+                std::cout << "Add" << std::endl;
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
 
+                status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
+                if (status < 0) { return status; }
+
+                result = op1_value + op2_value;
+
+                if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
+                if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
+                else { memory[op1_addr] = result; }
+
+                clock += 3;
+                time_left -= 3;
+
+                break;
             case H_OPCODE::SUBTRACT:
-                // ...
+                std::cout << "Subtract" << std::endl;
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
 
+                status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
+                if (status < 0) { return status; }
+
+                result = op1_value - op2_value;
+
+                if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
+                if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
+                else { memory[op1_addr] = result; }
+
+                clock += 3;
+                time_left -= 3;
+
+                break;
             case H_OPCODE::MULTIPLY:
-                // ...
+                std::cout << "Mult" << std::endl;
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
 
+                status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
+                if (status < 0) { return status; }
+
+                result = op1_value * op2_value;
+
+                if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
+                if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
+                else { memory[op1_addr] = result; }
+
+                clock += 6;
+                time_left -= 6;
+
+                break;
             case H_OPCODE::DIVIDE:
-                // ...
+                std::cout << "Divide" << std::endl;
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
 
+                status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
+                if (status < 0) { return status; }
+
+                result = op1_value * op2_value;
+
+                if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
+                if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
+                else { memory[op1_addr] = result; }
+
+                clock += 6;
+                time_left -= 6;
+
+                break;
             case H_OPCODE::MOVE:
-                // ...
+                std::cout << "Mov" << std::endl;
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
 
+                status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
+                if (status < 0) { return status; }
+
+                result = op2_value;
+
+                if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
+                if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
+                else { memory[op1_addr] = result; }
+
+                clock += 2;
+                time_left -= 2;
+
+                break;
             case H_OPCODE::BRANCH:
-                // ...
+                std::cout << "Branch" << std::endl;
+                
+                if (ProgramAddressInRange(r_pc))
+                {
+                    r_pc = memory[r_pc];
+                }
+                else
+                {
+                    std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                    return E_INVALID_PC;
+                }
 
+                clock += 2;
+                time_left -= 2;
+
+                break;
             case H_OPCODE::BRANCH_ON_MINUS:
-                // ...
+                std::cout << "BOM" << std::endl;
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
 
+                if (op1_value < 0)
+                {
+                    if (ProgramAddressInRange(r_pc))
+                    {
+                        r_pc = memory[r_pc];
+                    }
+                    else
+                    {
+                        std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                        return E_INVALID_PC;
+                    }
+                }
+                else
+                {
+                    r_pc++; // Skip branch instruction.
+                }
+
+                clock += 4;
+                time_left -= 4;
+
+                break;
             case H_OPCODE::BRANCH_ON_PLUS:
-                // ...
+                std::cout << "BOP" << std::endl;
 
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
+
+                if (op1_value > 0)
+                {
+                    if (ProgramAddressInRange(r_pc))
+                    {
+                        r_pc = memory[r_pc];
+                    }
+                    else
+                    {
+                        std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                        return E_INVALID_PC;
+                    }
+                }
+                else
+                {
+                    r_pc++; // Skip branch instruction.
+                }
+
+                clock += 4;
+                time_left -= 4;
+
+                break;
             case H_OPCODE::BRANCH_ON_ZERO:
+                std::cout << "BO0" << std::endl;
                 // ...
 
+                break;
             case H_OPCODE::PUSH:
-                // ...
+                std::cout << "Push" << std::endl;
 
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
+
+                if (op1_value == 0)
+                {
+                    if (ProgramAddressInRange(r_pc))
+                    {
+                        r_pc = memory[r_pc];
+                    }
+                    else
+                    {
+                        std::cout << "Invalid address for program counter on BRANCH: " << r_pc;
+                        return E_INVALID_PC;
+                    }
+                }
+                else
+                {
+                    r_pc++; // Skip branch instruction.
+                }
+
+                clock += 4;
+                time_left -= 4;
+
+                break;
             case H_OPCODE::POP:
+                std::cout << "Pop" << std::endl;
                 // ...
 
+                break;
             case H_OPCODE::SYSCALL:
+                std::cout << "Syscall" << std::endl;
                 // ...
 
+                break;
             default:
                 std::cout << "Invalid opcode: " << opcode;
                 return E_INVALID_OPCODE;
@@ -425,7 +615,9 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::AbsoluteLoader("../program.eom");
+    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program.eom");
+
+    Hypo::r_pc = eom_entrypoint;
+
     Hypo::CPU();
-    return 0xFF;
 }
