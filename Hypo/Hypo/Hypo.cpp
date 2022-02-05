@@ -11,6 +11,8 @@ namespace Hypo
     constexpr int H_EOF = -1;
     constexpr int H_MAX_PROGRAM_ADDR = 2499;
     constexpr int H_MAX_USER_FREE_ADDR = 4499;
+    constexpr int H_START_STACK_ADDR = 4500;
+    constexpr int H_STACK_SIZE = 9;
     constexpr int H_MAX_MEM_ADDR = 9999;
     constexpr int H_TTL = 2000;
 
@@ -24,7 +26,9 @@ namespace Hypo
         E_INVALID_MODE = -0x10,
         E_INVALID_GPR = -0x20,
         E_INVALID_OPCODE = -0x40,
-        E_INVALID_ADDR_IN_GPR = -0x80
+        E_INVALID_ADDR_IN_GPR = -0x80,
+        E_STACK_OVERFLOW = -0x100,
+        E_STACK_UNDERFLOW = -0x200
     };
 
     enum H_OPCODE
@@ -329,6 +333,12 @@ namespace Hypo
         return OK;
     }
 
+    word SystemCall(word id)
+    {
+        // TODO: Implement syscalls.
+        return OK;
+    }
+
     word CPU()
     {
         word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_value, op2_addr, op2_value, result;
@@ -601,12 +611,46 @@ namespace Hypo
                 break;
             case H_OPCODE::PUSH:
                 std::cout << "Push" << std::endl;
-                // ...
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
+
+                if (r_sp == memory[H_START_STACK_ADDR] + H_STACK_SIZE)
+                {
+                    std::cout << "Stack overflow.";
+                    return E_STACK_OVERFLOW;
+                }
+                else
+                {
+                    r_sp++;
+                    memory[r_sp] = op1_value;
+                    std::cout << "\nValue: " << memory[r_sp] << " pushed to the stack.\n";
+                }
+
+                clock += 2;
+                time_left -= 2;
 
                 break;
             case H_OPCODE::POP:
                 std::cout << "Pop" << std::endl;
-                // ...
+                
+                status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
+                if (status < 0) { return status; }
+
+                if (r_sp < memory[H_STACK_SIZE])
+                {
+                    std::cout << "Stack underflow.";
+                    return E_STACK_UNDERFLOW;
+                }
+                else
+                {
+                    op1_addr = memory[r_sp];
+                    std::cout << "\nValue: " << memory[r_sp] << " popped from the stack.\n";
+                    r_sp--;
+                }
+
+                clock += 2;
+                time_left -= 2;
 
                 break;
             case H_OPCODE::SYSCALL:
@@ -617,8 +661,7 @@ namespace Hypo
                     status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                     if (status < 0) { return status; }
 
-                    // TODO: Implement syscalls.
-                    status = 100;
+                    status = SystemCall(op1_value);
                 }
                 else
                 {
