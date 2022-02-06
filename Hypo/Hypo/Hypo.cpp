@@ -26,6 +26,15 @@
 
 namespace Hypo
 {
+    // ------ Debugging stuff. ------
+    const bool h_debug = true;
+    const std::string debug_opmode_descs[] 
+        = { "no opmode", "register", "register deferred", "auto increment", "auto decrement", "direct", "immediate" };
+
+    const std::string debug_opcode_descs[] 
+        =  { "halt", "add", "subtract", "multiply", "divide", "move", "branch", "branch on minus", "branch on plus", "branch on zero", "push", "pop", "syscall" };
+    // ------ Debugging stuff. ------
+
     // Constants.
     constexpr int H_EOF = -1;
     constexpr int H_MAX_PROGRAM_ADDR = 2499;
@@ -510,16 +519,27 @@ namespace Hypo
             opcode = r_ir / 10000;
             _rem = r_ir % 10000;
 
+            if (h_debug) { std::cout << std::endl << "instruction: " << r_ir << std::endl; }
+            if (h_debug) { std::cout << "opcode: " << opcode << " = " << debug_opcode_descs[opcode] << std::endl; }
+
             op1_mode = _rem / 1000;
             _rem = _rem % 1000;
+
+            if (h_debug) { std::cout << "op1 mode: " << op1_mode << " = " << debug_opmode_descs[op1_mode] << std::endl; }
 
             op1_gpr = _rem / 100;
             _rem = _rem % 100;
 
+            if (h_debug) { std::cout << "op1 gpr: " << op1_gpr << std::endl; }
+
             op2_mode = _rem / 10;
             _rem = _rem % 10;
 
+            if (h_debug) { std::cout << "op2 mode: " << op2_mode << " = " << debug_opmode_descs[op2_mode] << std::endl; }
+
             op2_gpr = _rem;
+
+            if (h_debug) { std::cout << "op2 gpr: " << op2_gpr << std::endl; }
 
             // Check validity of operand mode.
             if (op1_mode < H_OPMODE::NO_OP || op1_mode > H_OPMODE::IMMEDIATE || op2_mode < H_OPMODE::NO_OP || op2_mode > H_OPMODE::IMMEDIATE)
@@ -540,7 +560,6 @@ namespace Hypo
             switch (opcode)
             {
             case H_OPCODE::HALT: // Opcode 0, halt execution.
-                //std::cout << "Halt" << std::endl;
 
                 // Halt execution.
                 should_halt = true;
@@ -551,7 +570,6 @@ namespace Hypo
                 break;
 
             case H_OPCODE::ADD: // Opcode 1, add operands.
-                //std::cout << "Add" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -571,7 +589,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::SUBTRACT: // Opcode 2, subtract operands.
-                //std::cout << "Subtract" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -591,7 +608,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::MULTIPLY: // Opcode 3, multiply operands.
-                //std::cout << "Mult" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -611,7 +627,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::DIVIDE: // Opcode 4, divide operands.
-                //std::cout << "Divide" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -638,7 +653,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::MOVE: // Opcode 5, move/reassign memory address to value.
-                //std::cout << "Mov" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -658,7 +672,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH: // Opcode 6, branch/`goto` another memory address to continue execution.
-                //std::cout << "Branch" << std::endl;
                 
                 if (ProgramAddressInRange(r_pc))
                 {
@@ -676,7 +689,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH_ON_MINUS: // Opcode 7, branch if the value in operand 0 is negative.
-                //std::cout << "BOM" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -705,7 +717,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH_ON_PLUS: // Opcode 8, branch if the value in operand 0 is positive.
-                //std::cout << "BOP" << std::endl;
 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -734,7 +745,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH_ON_ZERO: // Opcode 9, branch if the value in operand 0 is equal to zero.
-                //std::cout << "BO0" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -763,7 +773,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::PUSH: // Opcode 10, push the value of operand 1 to the stack.
-                //std::cout << "Push" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -791,7 +800,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::POP: // Opcode 11, pop the latest value from the stack.
-                //std::cout << "Pop" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -818,7 +826,6 @@ namespace Hypo
 
                 break;
             case H_OPCODE::SYSCALL: // Opcode 12, perform a system function call.
-                //std::cout << "Syscall" << std::endl;
                 
                 if (ProgramAddressInRange(r_pc))
                 {
