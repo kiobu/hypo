@@ -540,7 +540,7 @@ namespace Hypo
             switch (opcode)
             {
             case H_OPCODE::HALT: // Opcode 0, halt execution.
-                std::cout << "Halt" << std::endl;
+                //std::cout << "Halt" << std::endl;
 
                 // Halt execution.
                 should_halt = true;
@@ -551,7 +551,7 @@ namespace Hypo
                 break;
 
             case H_OPCODE::ADD: // Opcode 1, add operands.
-                std::cout << "Add" << std::endl;
+                //std::cout << "Add" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -571,7 +571,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::SUBTRACT: // Opcode 2, subtract operands.
-                std::cout << "Subtract" << std::endl;
+                //std::cout << "Subtract" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -591,7 +591,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::MULTIPLY: // Opcode 3, multiply operands.
-                std::cout << "Mult" << std::endl;
+                //std::cout << "Mult" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -611,7 +611,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::DIVIDE: // Opcode 4, divide operands.
-                std::cout << "Divide" << std::endl;
+                //std::cout << "Divide" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -638,7 +638,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::MOVE: // Opcode 5, move/reassign memory address to value.
-                std::cout << "Mov" << std::endl;
+                //std::cout << "Mov" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -658,7 +658,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH: // Opcode 6, branch/`goto` another memory address to continue execution.
-                std::cout << "Branch" << std::endl;
+                //std::cout << "Branch" << std::endl;
                 
                 if (ProgramAddressInRange(r_pc))
                 {
@@ -676,7 +676,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH_ON_MINUS: // Opcode 7, branch if the value in operand 0 is negative.
-                std::cout << "BOM" << std::endl;
+                //std::cout << "BOM" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -705,7 +705,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH_ON_PLUS: // Opcode 8, branch if the value in operand 0 is positive.
-                std::cout << "BOP" << std::endl;
+                //std::cout << "BOP" << std::endl;
 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -734,7 +734,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::BRANCH_ON_ZERO: // Opcode 9, branch if the value in operand 0 is equal to zero.
-                std::cout << "BO0" << std::endl;
+                //std::cout << "BO0" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -763,7 +763,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::PUSH: // Opcode 10, push the value of operand 1 to the stack.
-                std::cout << "Push" << std::endl;
+                //std::cout << "Push" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -791,7 +791,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::POP: // Opcode 11, pop the latest value from the stack.
-                std::cout << "Pop" << std::endl;
+                //std::cout << "Pop" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
@@ -818,7 +818,7 @@ namespace Hypo
 
                 break;
             case H_OPCODE::SYSCALL: // Opcode 12, perform a system function call.
-                std::cout << "Syscall" << std::endl;
+                //std::cout << "Syscall" << std::endl;
                 
                 if (ProgramAddressInRange(r_pc))
                 {
@@ -850,7 +850,7 @@ namespace Hypo
 int main()
 {
     Hypo::InitializeSystem();
-    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../program2.eom");
+    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../evensum.eom");
 
     Hypo::r_pc = eom_entrypoint;
 
