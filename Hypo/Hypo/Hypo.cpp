@@ -1,3 +1,22 @@
+/*
+* 
+* --------------------------------
+* | Hypothetical Decimal Machine |
+* --------------------------------
+* 
+* Author: C.D.
+* ID: 301020137
+* HW: #1
+* Date: February 1st, 2022
+* 
+* The hypothetical decimal machine is a simulation of a decimal-based processor that
+* simulates hardware by executing instructions from a proprietary executable object
+* module format comprised of opcodes, opmodes, and simualated memory hardware addresses.
+* 
+* The Hypo simulator will be used to run MTOPS real-time executions.
+* 
+*/
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -16,6 +35,7 @@ namespace Hypo
     constexpr int H_MAX_MEM_ADDR = 9999;
     constexpr int H_TTL = 2000;
 
+    // Error bitflags to be returned by Hypo methods.
     enum H_ERROR_CODE
     {
         OK = 0x01,
@@ -28,9 +48,11 @@ namespace Hypo
         E_INVALID_OPCODE = -0x40,
         E_INVALID_ADDR_IN_GPR = -0x80,
         E_STACK_OVERFLOW = -0x100,
-        E_STACK_UNDERFLOW = -0x200
+        E_STACK_UNDERFLOW = -0x200,
+        E_DIVIDE_BY_ZERO = -0x400
     };
 
+    // Hypo opcodes.
     enum H_OPCODE
     {
         HALT = 0,
@@ -48,6 +70,7 @@ namespace Hypo
         SYSCALL = 12
     };
 
+    // Hypo opmodes.
     enum H_OPMODE
     {
         NO_OP = 0,
@@ -89,6 +112,16 @@ namespace Hypo
     // Program counter.
     word r_pc;
 
+    /*
+    * bool: UserFreeAddressInRange
+    *
+    * Check if a given address in memory is in the range for the user-free list area.
+    *
+    * @param addr Address in memory.
+    * 
+    * @return true if in range, false if not in range.
+    * 
+    */
     bool UserFreeAddressInRange(int addr)
     {
         if (addr > H_MAX_PROGRAM_ADDR && addr <= H_MAX_USER_FREE_ADDR)
@@ -101,6 +134,16 @@ namespace Hypo
         }
     }
 
+    /*
+    * bool: ProgramAddressInRange
+    *
+    * Check if a given address in memory is in the range for the program area.
+    *
+    * @param addr Address in memory.
+    * 
+    * @return true if in range, false if not in range.
+    * 
+    */
     bool ProgramAddressInRange(int addr)
     {
         if (addr > H_MAX_PROGRAM_ADDR || addr < -1)
@@ -113,7 +156,12 @@ namespace Hypo
         }
     }
 
-    // Initializes Hypo machine.
+    /*
+    * void: InitializeSystem
+    *
+    * Initialize the hypo machine. This will set all global Hypo fields to 0.
+    * 
+    */
     void InitializeSystem()
     {
         // Initialize clock to 0.
@@ -136,11 +184,30 @@ namespace Hypo
         r_pc = 0;
     }
 
-    // Loads a Hypo script.
+    /*
+    * int: AbsoluteLoader
+    *
+    * Loads the given EOM file and loads it into memory.
+    * 
+    * @param filename The EOM file to load.
+    * 
+    * @return One of the following status codes:
+    *   -1 = Cannot open file.
+    *   -2 = Invalid address in EOM.
+    *   -4 = Invalid PC.
+    *   -8 = No end-of-file marker in EOM.
+    * 
+    *   OR
+    * 
+    *   Any value over 0, which is to be the first instruction to be executed.
+    * 
+    */
     int AbsoluteLoader(std::string filename)
     {
+        // Open an ifstream.
         std::ifstream i_prog(filename);
 
+        // Check for file buffer validity.
         if (!i_prog)
         {
             std::cerr << "Cannot open file: " << filename;
@@ -148,6 +215,8 @@ namespace Hypo
         }
 
         int32_t h_addr, h_content;
+        
+        // Loops through columns of the EOM.
         while (i_prog >> h_addr >> h_content)
         {
             if (h_addr == H_EOF)
@@ -160,6 +229,8 @@ namespace Hypo
                 if (ProgramAddressInRange(entrypoint))
                 {
                     std::cout << "Program successfully loaded into memory.";
+
+                    // Return the first instruction to execute.
                     return h_content;
                 }
                 else
@@ -172,6 +243,7 @@ namespace Hypo
             {
                 if (ProgramAddressInRange(h_addr))
                 {
+                    // Store the instruction in memory.
                     memory[h_addr] = h_content;
                 }
                 else
@@ -184,6 +256,16 @@ namespace Hypo
         return E_NO_EOF;
     }
 
+    /*
+    * void: DumpMemory
+    *
+    * Dumps the running memory to the screen.
+    *
+    * @param str The header string to display.
+    * @param start_addr The address to start dumping from
+    * @param size How many values should be displayed past the start address.
+    * 
+    */
     void DumpMemory(std::string str, word start_addr, word size)
     {
         using namespace std;
@@ -232,15 +314,35 @@ namespace Hypo
         }
     }
 
+    /*
+    * long: FetchOperand
+    *
+    * Gets the operand from a given sliced EOM instruction from memory.
+    *
+    * @param op_mode The operand mode to process the operand with.
+    * @param op_reg The operand register for modes that access the GPRs.
+    * @param op_addr The address in memory to fetch.
+    * @param op_value The final value fetched from the instruction.
+    *
+    * @return A status code corresponding to H_ERROR_CODE.
+    * 
+    */
     word FetchOperand(word op_mode, word op_reg, word* op_addr, word* op_value)
     {
         switch (op_mode)
         {
+
+        // ------ Register mode ------ Operand value is in the GPR.
         case H_OPMODE::REGISTER:
+
+            // Set the address to a negative value, since our value is in a GPR.
             *op_addr = -2;
+
             *op_value = r_gpr[op_reg];
 
             break;
+
+        // ------ Register deferred mode ------ Operand address is in a GPR & value is in memory.
         case H_OPMODE::REGISTER_DEF:
             *op_addr = r_gpr[op_reg];
 
@@ -257,6 +359,8 @@ namespace Hypo
             }
 
             break;
+
+        // ------ Auto-increment mode ------ Operand address is in a GPR & operand value is in memory; auto-increment the register value.
         case H_OPMODE::AUTO_INC:
             *op_addr = r_gpr[op_reg];
 
@@ -272,11 +376,16 @@ namespace Hypo
                 return E_INVALID_ADDR_IN_GPR;
             }
 
-            r_gpr[op_reg]++;
+            r_gpr[op_reg]++; // Increment register value +1.
 
             break;
+
+        // ------ Auto-decrement mode ------ Operand address is in a GPR & operand value is in memory; auto-decrement the register value.
         case H_OPMODE::AUTO_DEC:
+
+            // Decrement register value -1.
             --r_gpr[op_reg];
+
             *op_addr = r_gpr[op_reg];
 
             if (ProgramAddressInRange(*op_addr))
@@ -292,7 +401,11 @@ namespace Hypo
             }
 
             break;
+
+        // ------ Direct mode ------ Operand address is in the instruction, pointed to by r_pc.
         case H_OPMODE::DIRECT:
+
+            // Get address from r_pc.
             *op_addr = memory[r_pc++];
 
             if (ProgramAddressInRange(*op_addr))
@@ -305,17 +418,18 @@ namespace Hypo
                 std::cout << "\n-- Address: " << *op_addr;
                 std::cout << "\n-- PC: " << r_pc;
 
-                DumpMemory("DIRECT MODE DUMP", 0, 100);
-
                 return E_INVALID_ADDR_IN_GPR;
             }
 
             break;
 
+        // ------ Immediate mode ------ Operand value is in the instruction.
         case H_OPMODE::IMMEDIATE:
             if (ProgramAddressInRange(r_pc))
             {
+                // Set the address to a negative value, since our value is in a GPR.
                 *op_addr = -2;
+
                 *op_value = memory[r_pc++];
             }
             else
@@ -325,6 +439,7 @@ namespace Hypo
             }
 
             break;
+        // ------ Invalid opmode ------
         default:
             std::cout << "Invalid opmode: " << op_mode;
             return E_INVALID_MODE;
@@ -333,25 +448,51 @@ namespace Hypo
         return OK;
     }
 
+    /*
+    * long: SystemCall
+    *
+    * Performs a system call (unimplemented).
+    *
+    * @param id The syscall ID to execute.
+    *
+    * @return OK
+    * 
+    */
     word SystemCall(word id)
     {
         // TODO: Implement syscalls.
         return OK;
     }
 
+    /*
+    * long: CPU
+    *
+    * Simulate the Hypo CPU.
+    *
+    * @return A status code corresponding to H_ERROR_CODE.
+    * 
+    */
     word CPU()
     {
+        // Instruction parameters.
         word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_value, op2_addr, op2_value, result;
+
+        // Time left before CPU times out.
         long time_left = H_TTL;
+
+        // Whether or not the CPU should halt execution.
         bool should_halt = false;
 
+        // The status of execution based on FetchOperand.
         word status;
 
         while (!should_halt && time_left > 0)
         {
             if (ProgramAddressInRange(r_pc))
             {
+                // Set r_mar to r_pc and increment r_pc to get the next word.
                 r_mar = r_pc++;
+
                 r_mbr = memory[r_mar];
             }
             else
@@ -360,37 +501,27 @@ namespace Hypo
                 return E_INVALID_PC;
             }
 
+            // Copy r_mbr to r_ir to process instruction.
             r_ir = r_mbr;
-
-            std::cout << "r_ir: " << r_ir << std::endl;
 
             long _rem;
             
-            // Break EOM format down into opcodes, operand modes, and GPR dests.
+            // Slice EOM instruction down into opcodes, operand modes, and GPR dests.
             opcode = r_ir / 10000;
             _rem = r_ir % 10000;
-
-            std::cout << "Opcode: " << opcode << std::endl;
 
             op1_mode = _rem / 1000;
             _rem = _rem % 1000;
 
-            std::cout << "op1 mode: " << op1_mode << std::endl;
-
             op1_gpr = _rem / 100;
             _rem = _rem % 100;
-
-            std::cout << "op1 GPR: " << op1_gpr << std::endl;
 
             op2_mode = _rem / 10;
             _rem = _rem % 10;
 
-            std::cout << "op2 mode: " << op2_mode << std::endl;
-
             op2_gpr = _rem;
 
-            std::cout << "op2 GPR: " << op2_gpr << std::endl;
-
+            // Check validity of operand mode.
             if (op1_mode < H_OPMODE::NO_OP || op1_mode > H_OPMODE::IMMEDIATE || op2_mode < H_OPMODE::NO_OP || op2_mode > H_OPMODE::IMMEDIATE)
             {
                 std::cout << "Invalid mode for operand.\n" << "-- First operand mode: " << op1_mode << "\n-- Second operand mode: " << op2_mode;
@@ -399,6 +530,7 @@ namespace Hypo
 
             size_t _gpr_len = (sizeof(r_gpr) / sizeof(r_gpr[0])) - 1;
 
+            // Check if the GPR exists (0 to sizeof(gprs)).
             if (op1_gpr < 0 || op1_gpr > _gpr_len || op2_gpr < 0 || op2_gpr > _gpr_len)
             {
                 std::cout << "Invalid GPR for operand.\n" << "-- First operand GPR: " << op1_gpr << "\n-- Second operand GPR: " << op2_gpr;
@@ -407,16 +539,18 @@ namespace Hypo
 
             switch (opcode)
             {
-            case H_OPCODE::HALT:
+            case H_OPCODE::HALT: // Opcode 0, halt execution.
                 std::cout << "Halt" << std::endl;
 
+                // Halt execution.
                 should_halt = true;
+
                 clock += 12;
                 time_left -= 12;
 
                 break;
 
-            case H_OPCODE::ADD:
+            case H_OPCODE::ADD: // Opcode 1, add operands.
                 std::cout << "Add" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
@@ -425,6 +559,7 @@ namespace Hypo
                 status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
                 if (status < 0) { return status; }
 
+                // Add the values.
                 result = op1_value + op2_value;
 
                 if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
@@ -435,7 +570,7 @@ namespace Hypo
                 time_left -= 3;
 
                 break;
-            case H_OPCODE::SUBTRACT:
+            case H_OPCODE::SUBTRACT: // Opcode 2, subtract operands.
                 std::cout << "Subtract" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
@@ -444,6 +579,7 @@ namespace Hypo
                 status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
                 if (status < 0) { return status; }
 
+                // Subtract the values.
                 result = op1_value - op2_value;
 
                 if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
@@ -454,7 +590,7 @@ namespace Hypo
                 time_left -= 3;
 
                 break;
-            case H_OPCODE::MULTIPLY:
+            case H_OPCODE::MULTIPLY: // Opcode 3, multiply operands.
                 std::cout << "Mult" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
@@ -463,6 +599,7 @@ namespace Hypo
                 status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
                 if (status < 0) { return status; }
 
+                // Multiply the values.
                 result = op1_value * op2_value;
 
                 if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
@@ -473,7 +610,7 @@ namespace Hypo
                 time_left -= 6;
 
                 break;
-            case H_OPCODE::DIVIDE:
+            case H_OPCODE::DIVIDE: // Opcode 4, divide operands.
                 std::cout << "Divide" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
@@ -482,7 +619,15 @@ namespace Hypo
                 status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
                 if (status < 0) { return status; }
 
-                result = op1_value * op2_value;
+                // x/0 is undefined.
+                if (op2_value == 0)
+                {
+                    std::cout << "Cannot divide by zero.";
+                    return E_DIVIDE_BY_ZERO;
+                }
+
+                // Divide the values.
+                result = op1_value / op2_value;
 
                 if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
                 if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
@@ -492,7 +637,7 @@ namespace Hypo
                 time_left -= 6;
 
                 break;
-            case H_OPCODE::MOVE:
+            case H_OPCODE::MOVE: // Opcode 5, move/reassign memory address to value.
                 std::cout << "Mov" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
@@ -501,21 +646,23 @@ namespace Hypo
                 status = FetchOperand(op2_mode, op2_gpr, &op2_addr, &op2_value);
                 if (status < 0) { return status; }
 
+                // Get result from operand 2.
                 result = op2_value;
 
                 if (op1_mode == H_OPMODE::IMMEDIATE) { std::cout << "Cannot store value in immediate mode."; return H_ERROR_CODE::E_INVALID_MODE; }
                 if (op1_mode == H_OPMODE::REGISTER) { r_gpr[op1_gpr] = result; }
-                else { memory[op1_addr] = result; }
+                else { memory[op1_addr] = result; } // Move result to memory address from operand 1.
 
                 clock += 2;
                 time_left -= 2;
 
                 break;
-            case H_OPCODE::BRANCH:
+            case H_OPCODE::BRANCH: // Opcode 6, branch/`goto` another memory address to continue execution.
                 std::cout << "Branch" << std::endl;
                 
                 if (ProgramAddressInRange(r_pc))
                 {
+                    // Get next instruction from current instruction.
                     r_pc = memory[r_pc];
                 }
                 else
@@ -528,16 +675,18 @@ namespace Hypo
                 time_left -= 2;
 
                 break;
-            case H_OPCODE::BRANCH_ON_MINUS:
+            case H_OPCODE::BRANCH_ON_MINUS: // Opcode 7, branch if the value in operand 0 is negative.
                 std::cout << "BOM" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
+                // Check if operand 1 is negative.
                 if (op1_value < 0)
                 {
                     if (ProgramAddressInRange(r_pc))
                     {
+                        // Get next instruction from current instruction.
                         r_pc = memory[r_pc];
                     }
                     else
@@ -555,16 +704,18 @@ namespace Hypo
                 time_left -= 4;
 
                 break;
-            case H_OPCODE::BRANCH_ON_PLUS:
+            case H_OPCODE::BRANCH_ON_PLUS: // Opcode 8, branch if the value in operand 0 is positive.
                 std::cout << "BOP" << std::endl;
 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
+                // Check if operand 1 is positive.
                 if (op1_value > 0)
                 {
                     if (ProgramAddressInRange(r_pc))
                     {
+                        // Get next instruction from current instruction.
                         r_pc = memory[r_pc];
                     }
                     else
@@ -582,16 +733,18 @@ namespace Hypo
                 time_left -= 4;
 
                 break;
-            case H_OPCODE::BRANCH_ON_ZERO:
+            case H_OPCODE::BRANCH_ON_ZERO: // Opcode 9, branch if the value in operand 0 is equal to zero.
                 std::cout << "BO0" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
+                // Check if operand 1 is zero.
                 if (op1_value == 0)
                 {
                     if (ProgramAddressInRange(r_pc))
                     {
+                        // Get next instruction from current instruction.
                         r_pc = memory[r_pc];
                     }
                     else
@@ -609,12 +762,13 @@ namespace Hypo
                 time_left -= 4;
 
                 break;
-            case H_OPCODE::PUSH:
+            case H_OPCODE::PUSH: // Opcode 10, push the value of operand 1 to the stack.
                 std::cout << "Push" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
+                // Check for a stack overflow.
                 if (r_sp == memory[H_START_STACK_ADDR] + H_STACK_SIZE)
                 {
                     std::cout << "Stack overflow.";
@@ -622,8 +776,13 @@ namespace Hypo
                 }
                 else
                 {
+                    // Adjust stack pointer.
                     r_sp++;
+
+                    // Push the value.
                     memory[r_sp] = op1_value;
+
+
                     std::cout << "\nValue: " << memory[r_sp] << " pushed to the stack.\n";
                 }
 
@@ -631,12 +790,13 @@ namespace Hypo
                 time_left -= 2;
 
                 break;
-            case H_OPCODE::POP:
+            case H_OPCODE::POP: // Opcode 11, pop the latest value from the stack.
                 std::cout << "Pop" << std::endl;
                 
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
+                // Check for a stack underflow.
                 if (r_sp < memory[H_STACK_SIZE])
                 {
                     std::cout << "Stack underflow.";
@@ -644,8 +804,12 @@ namespace Hypo
                 }
                 else
                 {
+                    // Pop the value.
                     op1_addr = memory[r_sp];
+
                     std::cout << "\nValue: " << memory[r_sp] << " popped from the stack.\n";
+
+                    // Adjust stack pointer.
                     r_sp--;
                 }
 
@@ -653,7 +817,7 @@ namespace Hypo
                 time_left -= 2;
 
                 break;
-            case H_OPCODE::SYSCALL:
+            case H_OPCODE::SYSCALL: // Opcode 12, perform a system function call.
                 std::cout << "Syscall" << std::endl;
                 
                 if (ProgramAddressInRange(r_pc))
@@ -661,6 +825,7 @@ namespace Hypo
                     status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                     if (status < 0) { return status; }
 
+                    // Execute the system call.
                     status = SystemCall(op1_value);
                 }
                 else
@@ -681,7 +846,7 @@ namespace Hypo
     }
 }
 
-
+// Begin Hypo process execution.
 int main()
 {
     Hypo::InitializeSystem();
@@ -691,5 +856,5 @@ int main()
 
     Hypo::CPU();
 
-    Hypo::DumpMemory("END OF CPU CYCLE", 1, 100);
+    Hypo::DumpMemory("END OF CPU CYCLE", 0, 100);
 }
