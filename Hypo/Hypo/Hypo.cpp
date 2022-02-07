@@ -19,10 +19,12 @@
 
 #include <iostream>
 #include <iomanip>
+#include <cstdio>
 #include <fstream>
 #include <string>
 #include <math.h>
 #include <assert.h>
+#include <vector>
 
 namespace Hypo
 {

@@ -2,6 +2,37 @@
 
 ## Assembly Code
 
+| Label | Mnemonic    | Operands      | Description
+|-------|-------------|---------------|---------------------------------------------------|
+|  main	|  function   |		          | Start of main function
+|  sum  |  long	      | 0		      | set value of sum to 0
+|  sum 	|  long	      | 0		      | set sum of even numbers to 0
+|  even	|  long	      | 2		      | set even counter to 2
+|  count|  long       | 0		      | sett value of count to 0
+|  num	|  long       | 550	          | value used in arithmetic set to 550
+|  num2	|  long	      | 100	          | value used in arithmetic set to 100
+|  num3	|  long	      | 5		      | value used in arithmetic set  to 5
+|  dec	|  long	      | 1		      | number used for loop decrement
+|  LoopN|  long	      | 50		      | loop counter set to 50
+|  Start|  Move	      | R2,0	      | move 0 to R2
+|  Loop	|  Add	      | count,even	  | add 2 to get next even number
+|       |  Add	      | r2,count	  | add next even number to sum
+|       |  Subtract   | LoopN,dec	  | subtract one from loop counter
+|       |  BrOnPlus   | LoopN,Loop	  | If the loop counter is plus branch to loop
+|       |  move	      | sum,r2		  | move value of r2 to sum
+|  temp	|  long	      | 0		      | var temp set to 0
+|       |  subtract   | num,sum	      |	Subtract sum from 550
+|       |  divide     | num,num2	  | divide num by 100
+|       |  multiply   | num,num3	  | multiply num by 5
+|       |  move	      | temp,num	  | set temp equal to num
+|       |  BrOnMinus  | Temp,check1   |	if temp is minus branch to check1
+|       |  BrOnPlus   | Temp,Check2	  | if temp is plus branch to check 2
+| Check1| move 		  | sum,2	      |	Move value of 2 to sum
+|       | Halt		  |	              |
+| Check2| move		  | sum,1	      |	Move value of 1 to sum
+|  	    | Halt		  |	              |
+|  	    | end         | Start         |
+
 ## Symbol Table
 
 | Symbol               | Addr |
