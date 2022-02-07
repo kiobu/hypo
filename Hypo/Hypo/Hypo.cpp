@@ -29,7 +29,7 @@
 namespace Hypo
 {
     // ------ Debugging stuff. ------
-    const bool h_debug = true;
+    const bool h_debug = false;
     const std::string debug_opmode_descs[] 
         = { "no opmode", "register", "register deferred", "auto increment", "auto decrement", "direct", "immediate" };
 
@@ -860,6 +860,8 @@ int main()
 {
     Hypo::InitializeSystem();
     Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../evensum.eom");
+
+    Hypo::DumpMemory("BEGINNING OF CPU CYCLE", 0, 100);
 
     Hypo::r_pc = eom_entrypoint;
 
