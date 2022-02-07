@@ -32,7 +32,7 @@ namespace Hypo
         = { "no opmode", "register", "register deferred", "auto increment", "auto decrement", "direct", "immediate" };
 
     const std::string debug_opcode_descs[] 
-        =  { "halt", "add", "subtract", "multiply", "divide", "move", "branch", "branch on minus", "branch on plus", "branch on zero", "push", "pop", "syscall" };
+        = { "halt", "add", "subtract", "multiply", "divide", "move", "branch", "branch on minus", "branch on plus", "branch on zero", "push", "pop", "syscall" };
     // ------ Debugging stuff. ------
 
     // Constants.
