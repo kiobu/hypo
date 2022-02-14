@@ -41,10 +41,21 @@ namespace Hypo
     constexpr int H_EOF = -1;
     constexpr int H_MAX_PROGRAM_ADDR = 2499;
     constexpr int H_MAX_USER_FREE_ADDR = 4499;
-    constexpr int H_START_STACK_ADDR = 4500;
-    constexpr int H_STACK_SIZE = 9;
     constexpr int H_MAX_MEM_ADDR = 9999;
     constexpr int H_TTL = 2000;
+
+    // MTOPS constants.
+    constexpr int H_EOL = -1;
+    constexpr int H_EOP = -1;
+    constexpr int H_STACK_SIZE = 9;
+    constexpr int H_START_SIZE_USER_FREE = 2000;
+    constexpr int H_START_SIZE_OS_FREE = 5500;
+    constexpr int H_PCBSIZE = 25;
+    constexpr int H_DEFAULT_PRIORITY = 128;
+
+    // State constants.
+    constexpr int H_READY_STATE = 1;
+    constexpr int H_WAITING_STATE = 2;
 
     // Error bitflags to be returned by Hypo methods.
     enum H_ERROR_CODE
@@ -60,7 +71,16 @@ namespace Hypo
         E_INVALID_ADDR_IN_GPR = -0x80,
         E_STACK_OVERFLOW = -0x100,
         E_STACK_UNDERFLOW = -0x200,
-        E_DIVIDE_BY_ZERO = -0x400
+        E_DIVIDE_BY_ZERO = -0x400,
+
+        // MTOPS specific errors.
+        E_MTOPS_INVALID_PID = -0x800,
+        E_MTOPS_INSUFFICIENT_MEM = -0x1000,
+        E_MTOPS_NOT_MEM_BLOCK = -0x2000,
+        E_MTOPS_INVALID_SYSCALL = -0x4000,
+        E_MTOPS_QUEUE_FULL = -0x8000,
+        E_MTOPS_INVALID_FS_NAME = -0x10000,
+        E_MTOPS_INVALID_MEM_ADDR = -0x20000
     };
 
     // Hypo opcodes.
@@ -92,6 +112,29 @@ namespace Hypo
         DIRECT = 5,
         IMMEDIATE = 6
     };
+
+    // PCB indicies.
+    enum H_PCB_IDX
+    {
+        I_NEXT_POINTER = 0,
+        I_STATE = 2,
+        I_PID = 1,
+        I_WAIT_REASON = 3,
+        I_PRIORITY = 4,
+        I_STACK_START = 5,
+        I_STACK_SIZE = 6,
+        I_GPR0 = 11,
+        I_GPR1 = 12,
+        I_GPR2 = 13,
+        I_GPR3 = 14,
+        I_GPR4 = 15,
+        I_GPR5 = 16,
+        I_GPR6 = 17,
+        I_GPR7 = 18,
+        I_R_SP = 19,
+        I_R_PC = 20,
+        I_R_PSR = 21
+    };
     
     // Words are signed 32-bit and should accomodate 6 digits.
     typedef long word;
@@ -122,6 +165,18 @@ namespace Hypo
 
     // Program counter.
     word r_pc;
+
+    // Ready queue.
+    word mtops_rq = H_EOL;
+
+    // Waiting queue.
+    word mtops_wq = H_EOL;
+
+    // PID
+    word pid = 1;
+
+    // Should shutdown status (to process interrupts).
+    bool shutdown_status = false;
 
     /*
     * bool: UserFreeAddressInRange
@@ -460,6 +515,27 @@ namespace Hypo
     }
 
     /*
+    * void: InitializePCB
+    * 
+    * Initializes the simulated hardware for our PCB.
+    * 
+    * @param pcb_ptr The address in memory for the PCB.
+    * 
+    */
+    void InitializePCB(word pcb_ptr)
+    {
+        for (int pcb_idx = 0; pcb_idx < H_PCBSIZE; pcb_idx++)
+        {
+            memory[pcb_ptr + pcb_idx] = 0;
+        }
+
+        memory[pcb_ptr + I_NEXT_POINTER] = H_EOL;
+        memory[pcb_ptr + I_PID] = pid++;
+        memory[pcb_ptr + I_STATE] = H_READY_STATE;
+        memory[pcb_ptr + I_PRIORITY] = H_DEFAULT_PRIORITY;
+    }
+
+    /*
     * long: SystemCall
     *
     * Performs a system call (unimplemented).
@@ -779,23 +855,7 @@ namespace Hypo
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
-                // Check for a stack overflow.
-                if (r_sp == memory[H_START_STACK_ADDR] + H_STACK_SIZE)
-                {
-                    std::cout << "Stack overflow.";
-                    return E_STACK_OVERFLOW;
-                }
-                else
-                {
-                    // Adjust stack pointer.
-                    r_sp++;
-
-                    // Push the value.
-                    memory[r_sp] = op1_value;
-
-
-                    std::cout << "\nValue: " << memory[r_sp] << " pushed to the stack.\n";
-                }
+                // ...
 
                 clock += 2;
                 time_left -= 2;
@@ -806,22 +866,7 @@ namespace Hypo
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
-                // Check for a stack underflow.
-                if (r_sp < memory[H_STACK_SIZE])
-                {
-                    std::cout << "Stack underflow.";
-                    return E_STACK_UNDERFLOW;
-                }
-                else
-                {
-                    // Pop the value.
-                    op1_addr = memory[r_sp];
-
-                    std::cout << "\nValue: " << memory[r_sp] << " popped from the stack.\n";
-
-                    // Adjust stack pointer.
-                    r_sp--;
-                }
+                // ...
 
                 clock += 2;
                 time_left -= 2;
