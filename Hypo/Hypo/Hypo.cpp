@@ -139,9 +139,18 @@ namespace Hypo
         I_R_PC = 20,
         I_R_PSR = 21
     };
+
+    enum H_INTS
+    {
+        INT_NO_OP = 0,
+        INT_RUN_PROG = 1,
+        INT_SHUTDOWN = 2,
+        INT_IO_GETC = 3,
+        INT_IO_PUTC = 4
+    };
     
     // Words are signed 32-bit and should accomodate 6 digits.
-    typedef long word;
+    typedef word word;
 
     // Memory, addresses are simply integers 1-5000.
     word memory[10000];
@@ -180,7 +189,7 @@ namespace Hypo
     word mtops_wq = H_EOL;
 
     // PID
-    word pid = 1;
+    word mtops_pid = 1;
 
     // OS free list.
     word mtops_os_free_list = H_EOL;
@@ -188,12 +197,18 @@ namespace Hypo
     // User free list.
     word mtops_user_free_list = H_EOL;
 
+    // Ready queue.
+    word RQ = H_EOL;
+
+    // Waiting queue.
+    word WQ = H_EOL;
+
     // Should shutdown status (to process interrupts).
     bool shutdown_status = false;
 
     bool OSAddressInRange(int addr)
     {
-        if (addr > H_MAX_USER_FREE_ADDR && addr < H_MAX_MEM_ADDR)
+        if (addr > H_MAX_USER_FREE_ADDR && addr <= H_MAX_MEM_ADDR)
         {
             return true;
         }
@@ -406,7 +421,7 @@ namespace Hypo
     }
 
     /*
-    * long: FetchOperand
+    * word: FetchOperand
     *
     * Gets the operand from a given sliced EOM instruction from memory.
     *
@@ -555,7 +570,7 @@ namespace Hypo
         }
 
         memory[pcb_ptr + I_NEXT_POINTER] = H_EOL;
-        memory[pcb_ptr + I_PID] = pid++;
+        memory[pcb_ptr + I_PID] = mtops_pid++;
         memory[pcb_ptr + I_STATE] = H_READY_STATE;
         memory[pcb_ptr + I_PRIORITY] = H_DEFAULT_PRIORITY;
     }
@@ -574,8 +589,8 @@ namespace Hypo
             return E_MTOPS_REQ_MEM_TOO_SMALL;
         }
 
-        long c_ptr = mtops_os_free_list;
-        long p_ptr = H_EOL;
+        word c_ptr = mtops_os_free_list;
+        word p_ptr = H_EOL;
 
         while (c_ptr != H_EOL)
         {
@@ -623,6 +638,13 @@ namespace Hypo
         return E_MTOPS_INSUFFICIENT_MEM;
     }
 
+    void TerminateProcess(word pcb_ptr)
+    {
+        FreeUserMemory(memory[pcb_ptr + I_STACK_START], memory[pcb_ptr + I_STACK_SIZE]); // Return stack memory using stack start address and stack size in the given PCB.
+
+        FreeOSMemory(pcb_ptr, H_PCBSIZE); // Return PCB memory using the pcb_ptr.
+    }
+
     word AllocateUserMemory(word size)
     {
         if (mtops_user_free_list == H_EOL)
@@ -637,8 +659,8 @@ namespace Hypo
             return E_MTOPS_REQ_MEM_TOO_SMALL;
         }
 
-        long c_ptr = mtops_user_free_list;
-        long p_ptr = H_EOL;
+        word c_ptr = mtops_user_free_list;
+        word p_ptr = H_EOL;
 
         while (c_ptr != H_EOL)
         {
@@ -718,17 +740,42 @@ namespace Hypo
         }
     }
 
-    void PrintPCB(word PCBptr)
+    word FreeUserMemory(word ptr, word size)
+    {
+        if (!UserFreeAddressInRange(ptr))
+        {
+            std::cout << "Memory address out of bounds for user free memory.";
+            return E_MTOPS_NOT_MEM_BLOCK;
+        }
+        
+        if (size < 2) //Size to User memory to free is too small, return error.
+        {
+            std::cout << "Memory size is too small, must be >= 2.";
+            return E_MTOPS_REQ_MEM_TOO_SMALL;
+        }
+        else if ((ptr + size) > H_MAX_MEM_ADDR) //Trying to free elements in memory that pass its' limit, return error.
+        {
+            std::cout << "Requested size is too large and is out of bounds.";
+            return E_MTOPS_INVALID_MEM_RANGE;
+        }
+
+        memory[ptr] = mtops_user_free_list; //Set the pointer of the released free block to point to the 'front' of the UserFreeList (the newly released block is taking it's place at the front).
+        memory[ptr + 1] = size; //Set the size of this block in UserFreeList to the size given.
+        mtops_user_free_list = ptr; //Set the pointer given to be the new front of the UserFreeList.
+        return OK;
+    }
+
+    void PrintPCB(word pcb_ptr)
     {
         using namespace std;
 
-        cout << "\nPCB @ " << PCBptr << ":" << endl;
+        cout << "\nPCB @ " << pcb_ptr << ":" << endl;
 
         //Prints PCB address, Next Pointer Address, PID, State, Priority, PC, and SP values of the PCB.
-        cout << "PCB address = " << PCBptr << ", Next PCB Ptr = " << memory[PCBptr + I_NEXT_POINTER] << ", PID = " << memory[PCBptr + I_PID] << ", State = " << memory[PCBptr + I_STATE] << ", Reason for Waiting = " << memory[PCBptr + I_WAIT_REASON] << ", PC = " << memory[PCBptr + I_R_PC] << ", SP = " << memory[PCBptr + I_R_SP] << ", Priority = " << memory[PCBptr + I_PRIORITY] << ", STACK INFO: Starting Stack Address " << memory[PCBptr + I_STACK_START] << ", Stack Size = " << memory[PCBptr + I_STACK_SIZE] << endl;
+        cout << "PCB address = " << pcb_ptr << ", Next PCB Ptr = " << memory[pcb_ptr + I_NEXT_POINTER] << ", PID = " << memory[pcb_ptr + I_PID] << ", State = " << memory[pcb_ptr + I_STATE] << ", Reason for Waiting = " << memory[pcb_ptr + I_WAIT_REASON] << ", PC = " << memory[pcb_ptr + I_R_PC] << ", SP = " << memory[pcb_ptr + I_R_SP] << ", Priority = " << memory[pcb_ptr + I_PRIORITY] << ", STACK INFO: Starting Stack Address " << memory[pcb_ptr + I_STACK_START] << ", Stack Size = " << memory[pcb_ptr + I_STACK_SIZE] << endl;
 
         //Prints the GPR values of the PCB.
-        cout << "GPRs:   GPR0: " << memory[PCBptr + I_GPR0] << "   GPR1: " << memory[PCBptr + I_GPR1] << "   GPR2: " << memory[PCBptr + I_GPR2] << "   GPR3: " << memory[PCBptr + I_GPR3] << "   GPR4: " << memory[PCBptr + I_GPR4] << "   GPR5: " << memory[PCBptr + I_GPR5] << "   GPR6: " << memory[PCBptr + I_GPR6] << "   GPR7: " << memory[PCBptr + I_GPR7] << "\n" << endl;
+        cout << "GPRs:   GPR0: " << memory[pcb_ptr + I_GPR0] << "   GPR1: " << memory[pcb_ptr + I_GPR1] << "   GPR2: " << memory[pcb_ptr + I_GPR2] << "   GPR3: " << memory[pcb_ptr + I_GPR3] << "   GPR4: " << memory[pcb_ptr + I_GPR4] << "   GPR5: " << memory[pcb_ptr + I_GPR5] << "   GPR6: " << memory[pcb_ptr + I_GPR6] << "   GPR7: " << memory[pcb_ptr + I_GPR7] << "\n" << endl;
     }
 
     word CreateProcess(std::string *filename, word priority)
@@ -756,8 +803,282 @@ namespace Hypo
         PrintPCB(pcb_ptr);
     }
 
+    long PrintQueue(long queue_ptr)
+    {
+        long c_pcb_ptr = queue_ptr;
+
+        if (c_pcb_ptr == H_EOL) //If the initial address is EndOfList, then the list itself is empty.
+        {
+            std::cout << "Empty list."; 
+            return OK;
+        }
+
+        // Walk thru the queue.
+        while (c_pcb_ptr != H_EOL)
+        {
+            PrintPCB(c_pcb_ptr);
+            c_pcb_ptr = memory[c_pcb_ptr + I_NEXT_POINTER];
+        }
+
+        return OK;
+
+    }
+
+    word InsertIntoWQ(word pcb_ptr)
+    {
+        if (pcb_ptr < 0 || pcb_ptr > H_MAX_MEM_ADDR)
+        {
+            std::cout << "Invalid memory range.";
+            return E_MTOPS_INVALID_MEM_RANGE;
+        }
+
+        memory[pcb_ptr + I_STATE] = H_WAITING_STATE; //Set the PCB's state to "waiting."
+        memory[pcb_ptr + I_NEXT_POINTER] = WQ;
+        WQ = pcb_ptr;
+
+        return OK;
+
+    }
+
+    word InsertIntoRQ(word pcb_ptr)
+    {
+        word p_ptr = H_EOL;
+        word c_ptr = RQ;
+
+        if (pcb_ptr < 0 || pcb_ptr > H_MAX_MEM_ADDR)
+        {
+            std::cout << "Invalid memory range.";
+            return E_MTOPS_INVALID_MEM_RANGE;
+        }
+
+        memory[pcb_ptr + I_STATE] = H_READY_STATE; //Set the PCB's state to "ready."
+        memory[pcb_ptr + I_NEXT_POINTER] = H_EOL; //Set the PCB's Next Pointer value to EndOfList.
+
+        if (RQ == H_EOL) //If RQ is equal to the value of EndOfList (-1), then RQ is empty.
+        {
+            RQ = pcb_ptr;
+            return OK;
+        }
+
+        while (c_ptr != H_EOL)
+        {
+            if (memory[pcb_ptr + I_PRIORITY] > memory[c_ptr + I_PRIORITY]) //If the priority of the PCB we want to insert is higher than the priority of the current PCB...
+            {
+                if (p_ptr == H_EOL) //If p_ptr is EndOfList, then the priority of the PCB that we want to insert is higher than the highest priority PCB.
+                {
+                    memory[pcb_ptr + I_NEXT_POINTER] = RQ; //Change the current PCB's next pointer from EOL to the first PCB in the ready queue.
+                    RQ = pcb_ptr; //Change the RQ value to the address of the PCB that we want to insert (because it is now the head of the queue).
+                    return OK;
+                }
+
+                //If it isn't at the start of the RQ, then we're inserting this PCB into the middle of the list.
+                memory[pcb_ptr + I_NEXT_POINTER] = memory[p_ptr + I_NEXT_POINTER]; //Set pcb_ptr's next pointer index to the previous pointer's next pointer index, because pcb_ptr is taking over the previous pointer's slot.
+                memory[p_ptr + I_NEXT_POINTER] = pcb_ptr; //Set the previous pointer's next pointer index to the PCB address, completing the insertion.
+                return OK;
+            }
+
+            else //PCB to be inserted has lower or equal priority as the current PCB in RQ, move on to the next PCB.
+            {
+                p_ptr = c_ptr;
+                c_ptr = memory[c_ptr + I_NEXT_POINTER];
+            }
+        }
+
+        //If it gets to this point in the InsertIntoRQ() function, than the PCB we want to insert has the lowest priority in the RQ. Insert the new PCB into the end of the RQ.
+        memory[p_ptr + I_NEXT_POINTER] = pcb_ptr; //Change the previous pointer's next pointer index from EOL to the new PCB address. Note that the new PCB has a next pointer address of EOL.
+        return OK;
+
+    }
+
+    word SearchAndRemovePCBfromWQ(word this_pid)
+    {
+        word currentpcb_ptr = WQ;
+        word previouspcb_ptr = H_EOL;
+
+        if (this_pid < 1) //PID cannot be zero or less than zero. Check for an incorrect PID.
+        {
+            std::cout << "Invalid PID.";
+            return E_MTOPS_INVALID_PID;
+        }
+
+        //Search WQ for a PCB that has the given pid. If a match is found, remove it from WQ and return the PCB pointer
+        while (currentpcb_ptr != H_EOL)
+        {
+            if (memory[currentpcb_ptr + I_PID] == this_pid) //If the current pointer's PID matches the PID we're looking for, then a match is found. Remove that process from WQ.
+            {
+                if (previouspcb_ptr == H_EOL) //First PCB in WQ is a match.
+                {
+                    WQ = memory[currentpcb_ptr + I_NEXT_POINTER]; //Set the starting point of WQ to the second PCB in WQ.
+                }
+                else //Match is somewhere in the middle of WQ.
+                {
+                    memory[previouspcb_ptr + I_NEXT_POINTER] = memory[currentpcb_ptr + I_NEXT_POINTER]; //Adjust the previous PCB's next pointer index to be the next pointer index of the PCB that's being removed from WQ.
+                }
+
+                memory[currentpcb_ptr + I_NEXT_POINTER] = H_EOL; //Adjust the returning PCB's next pointer index to be 'EndOfList'.
+                return currentpcb_ptr; //Return matching PCB.
+            }
+
+            previouspcb_ptr = currentpcb_ptr; //Move on to the next PCB if there is no match.
+            currentpcb_ptr = memory[currentpcb_ptr + I_NEXT_POINTER];
+        }
+
+        std::cout << "No process process with ID " << this_pid << " could be found.";
+        return E_MTOPS_INVALID_PID; // TODO: Replace with new error.
+    }
+
+    long SelectProcessFromRQ()
+    {
+        long pcb_ptr = RQ;
+
+        if (RQ != H_EOL)
+        {
+            RQ = memory[RQ + I_NEXT_POINTER];
+        }
+
+        memory[pcb_ptr + I_NEXT_POINTER] = H_EOL;
+        return pcb_ptr;
+    }
+
+    void SaveContext(long pcb_ptr)
+    {
+        memory[pcb_ptr + I_GPR0] = r_gpr[0];
+        memory[pcb_ptr + I_GPR1] = r_gpr[1];
+        memory[pcb_ptr + I_GPR2] = r_gpr[2];
+        memory[pcb_ptr + I_GPR3] = r_gpr[3];
+        memory[pcb_ptr + I_GPR4] = r_gpr[4];
+        memory[pcb_ptr + I_GPR5] = r_gpr[5];
+        memory[pcb_ptr + I_GPR6] = r_gpr[6];
+        memory[pcb_ptr + I_GPR7] = r_gpr[7];
+
+        memory[pcb_ptr + I_R_SP] = r_sp;
+        memory[pcb_ptr + I_R_PC] = r_pc;
+        memory[pcb_ptr + I_R_PSR] = r_psr;
+    }
+
+    void Dispatcher(long pcb_ptr)
+    {
+        r_gpr[0] = memory[pcb_ptr + I_GPR0];
+        r_gpr[0] = memory[pcb_ptr + I_GPR1];
+        r_gpr[0] = memory[pcb_ptr + I_GPR2];
+        r_gpr[0] = memory[pcb_ptr + I_GPR3];
+        r_gpr[0] = memory[pcb_ptr + I_GPR4];
+        r_gpr[0] = memory[pcb_ptr + I_GPR5];
+        r_gpr[0] = memory[pcb_ptr + I_GPR6];
+        r_gpr[0] = memory[pcb_ptr + I_GPR7];
+        r_sp = memory[pcb_ptr + I_R_SP];
+        r_pc = memory[pcb_ptr + I_R_PC];
+        r_psr = memory[pcb_ptr + I_R_PSR];
+    }
+
+    word CheckAndProcessInterrupt()
+    {
+        word i_id;
+
+        std::cout << "\n Interrupts: \n 0: No interrupt. \n 1: Run program. \n 2: Shutdown system. \n 3: io_getc \n 4: io_putc \n Interrupt ID:";
+        std::cin >> i_id;
+
+        switch (i_id)
+        {
+        case INT_NO_OP:
+            break;
+        case INT_RUN_PROG:
+            ISRrunProgramInterrupt();
+            break;
+        case INT_SHUTDOWN:
+            ISRshutdownSystem();
+            shutdown_status = true;
+            break;
+        case INT_IO_GETC:
+            ISRinputCompletionInterrupt();
+            break;
+        case INT_IO_PUTC:
+            ISRoutputCompletionInterrupt();
+            break;
+        default:
+            std::cout << "Invalid interrupt signal. This is a no-op...";
+            return INT_NO_OP;
+        }
+
+        return i_id;
+    }
+
+    void ISRrunProgramInterrupt()
+    {
+        std::string programToRun;
+        std::cout << "\nEnter filename: ";
+        std::cin >> programToRun; //Prompt and read filename.
+
+        std::string* fptr = &programToRun;
+        CreateProcess(fptr, H_DEFAULT_PRIORITY); //Call Create Process passing filename and Default Priority as arguments.
+
+    }
+
+    void ISRinputCompletionInterrupt()
+    {
+        word PID;
+        char i_char;
+
+        std::cout << "ISR designed for input completion has begun running, please specify the PID of the process that the input is being completed for: ";
+        std::cin >> PID; //Read the PID of the process we're completing input for.
+
+        word pcb_ptr = SearchAndRemovePCBfromWQ(PID); //Search WQ to find the PCB that has the given PID, return value is stored in pcb_ptr.
+        if (pcb_ptr > 0) //Only performs this section with a valid PCB address.
+        {
+            std::cout << "Please enter a character to store: ";
+            std::cin >> i_char; //Read one character from standard input device keyboard.
+            memory[pcb_ptr + I_GPR1] = (word) i_char; //Store the character in the GPR in the PCB. Use typecasting from char to word data types.
+            memory[pcb_ptr + I_STATE] = H_READY_STATE; //Set process state to Ready in the PCB.
+            std::cout << "The character " << i_char << " was successfully INPUTTED.";
+            InsertIntoRQ(pcb_ptr); //Insert PCB into ready queue.
+        }
+    } 
+
+    void ISRoutputCompletionInterrupt()
+    {
+        word PID;
+        char o_char;
+
+        std::cout << "ISR designed for output completion has begun running, please specify the PID of the process that the output is being completed for: ";
+        std::cin >> PID; //Read the PID of the process we're completing input for.
+
+        word pcb_ptr = SearchAndRemovePCBfromWQ(PID); //Search WQ to find the PCB that has the given PID, return value is stored in pcb_ptr.
+        if (pcb_ptr > 0) //Only performs this section with a valid PCB address.
+        {
+            o_char = (char) memory[pcb_ptr + I_GPR1]; //Typecast the ascii code for the output character back into a character value. Store in output character.
+            std::cout << "\nOUTPUT COMPLETED, CHARACTER DISPLAYED: " << o_char << std::endl; //Print the character that was in the PCB's GPR1 slot.
+            memory[pcb_ptr + I_STATE] = H_READY_STATE; //Set process state to Ready in the PCB.
+            InsertIntoRQ(pcb_ptr); //Insert PCB into ready queue.
+        }
+
+    }
+
+    void ISRshutdownSystem()
+    {
+        //Terminate all processes in RQ one by one.
+        word ptr = RQ; //Set ptr to first PCB pointed by RQ.
+
+        while (ptr != H_EOL) //While there are still PCBs in the RQ...
+        {
+            RQ = memory[ptr + I_NEXT_POINTER]; //Set RQ to equal the next PCB in RQ.
+            TerminateProcess(ptr); //Terminate the current process in the list.
+            ptr = RQ; //Set ptr to the next PCB in RQ.
+        }
+
+        //Terminate all processes in WQ one by one.	
+        ptr = WQ; //Set ptr to first PCB pointed by WQ.
+
+        while (ptr != H_EOL) //While there are still PCBs in the WQ...
+        {
+            WQ = memory[ptr + I_NEXT_POINTER]; //Set RQ to equal the next PCB in RQ.
+            TerminateProcess(ptr); //Terminate the current process in the list.
+            ptr = WQ; //Set ptr to the next PCB in WQ.
+        }
+
+    }
+
     /*
-    * long: SystemCall
+    * word: SystemCall
     *
     * Performs a system call (unimplemented).
     *
@@ -773,7 +1094,7 @@ namespace Hypo
     }
 
     /*
-    * long: CPU
+    * word: CPU
     *
     * Simulate the Hypo CPU.
     *
@@ -786,7 +1107,7 @@ namespace Hypo
         word opcode, op1_mode, op1_gpr, op2_mode, op2_gpr, op1_addr, op1_value, op2_addr, op2_value, result;
 
         // Time left before CPU times out.
-        long time_left = H_TTL;
+        word time_left = H_TTL;
 
         // Whether or not the CPU should halt execution.
         bool should_halt = false;
@@ -812,7 +1133,7 @@ namespace Hypo
             // Copy r_mbr to r_ir to process instruction.
             r_ir = r_mbr;
 
-            long _rem;
+            word _rem;
             
             // Slice EOM instruction down into opcodes, operand modes, and GPR dests.
             opcode = r_ir / 10000;
@@ -1076,7 +1397,16 @@ namespace Hypo
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
-                // ...
+                if (r_sp == memory[mtops_pcb_ptr + I_STACK_START] + H_STACK_SIZE)
+                {
+                    std::cout << "Stack is full, cannot push.";
+                    return E_STACK_OVERFLOW;
+                }
+                else
+                {
+                    r_sp++;
+                    memory[r_sp] = op1_value;
+                }
 
                 clock += 2;
                 time_left -= 2;
@@ -1087,7 +1417,17 @@ namespace Hypo
                 status = FetchOperand(op1_mode, op1_gpr, &op1_addr, &op1_value);
                 if (status < 0) { return status; }
 
-                // ...
+                if (r_sp < memory[mtops_pcb_ptr + I_STACK_START])
+                {
+                    std::cout << "Stack is empty, cannot pop.";
+                    return E_STACK_UNDERFLOW;
+                }
+                else
+                {
+                    std::cout << "Popping " << memory[r_sp] << " from the stack.";
+                    op1_addr = memory[r_sp];
+                    r_sp--;
+                }
 
                 clock += 2;
                 time_left -= 2;
@@ -1102,6 +1442,7 @@ namespace Hypo
 
                     // Execute the system call.
                     status = SystemCall(op1_value);
+                    if (status == INT_IO_GETC || status == INT_IO_PUTC) { return status; }
                 }
                 else
                 {
