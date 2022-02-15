@@ -39,10 +39,12 @@ namespace Hypo
 
     // Constants.
     constexpr int H_EOF = -1;
+    constexpr int H_PROGRAM_ADDR = 0;
     constexpr int H_MAX_PROGRAM_ADDR = 2499;
     constexpr int H_MAX_USER_FREE_ADDR = 4499;
     constexpr int H_MAX_MEM_ADDR = 9999;
     constexpr int H_TTL = 2000;
+    constexpr int H_TOTAL_USER_PROG = 99;
 
     // MTOPS constants.
     constexpr int H_EOL = -1;
@@ -80,7 +82,9 @@ namespace Hypo
         E_MTOPS_INVALID_SYSCALL = -0x4000,
         E_MTOPS_QUEUE_FULL = -0x8000,
         E_MTOPS_INVALID_FS_NAME = -0x10000,
-        E_MTOPS_INVALID_MEM_ADDR = -0x20000
+        E_MTOPS_INVALID_MEM_ADDR = -0x20000,
+        E_MTOPS_REQ_MEM_TOO_SMALL = -0x40000,
+        E_MTOPS_INVALID_MEM_RANGE = -0x80000
     };
 
     // Hypo opcodes.
@@ -166,6 +170,9 @@ namespace Hypo
     // Program counter.
     word r_pc;
 
+    // Running PCB pointer.
+    word mtops_pcb_ptr = H_EOL;
+
     // Ready queue.
     word mtops_rq = H_EOL;
 
@@ -175,8 +182,26 @@ namespace Hypo
     // PID
     word pid = 1;
 
+    // OS free list.
+    word mtops_os_free_list = H_EOL;
+
+    // User free list.
+    word mtops_user_free_list = H_EOL;
+
     // Should shutdown status (to process interrupts).
     bool shutdown_status = false;
+
+    bool OSAddressInRange(int addr)
+    {
+        if (addr > H_MAX_USER_FREE_ADDR && addr < H_MAX_MEM_ADDR)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 
     /*
     * bool: UserFreeAddressInRange
@@ -212,7 +237,7 @@ namespace Hypo
     */
     bool ProgramAddressInRange(int addr)
     {
-        if (addr > H_MAX_PROGRAM_ADDR || addr < -1)
+        if (addr > H_MAX_PROGRAM_ADDR || addr < H_PROGRAM_ADDR)
         {
             return false;
         }
@@ -533,6 +558,202 @@ namespace Hypo
         memory[pcb_ptr + I_PID] = pid++;
         memory[pcb_ptr + I_STATE] = H_READY_STATE;
         memory[pcb_ptr + I_PRIORITY] = H_DEFAULT_PRIORITY;
+    }
+
+    word AllocateOSMemory(word size)
+    {
+        if (mtops_os_free_list == H_EOL)
+        {
+            std::cout << "No memory available to allocate.";
+            return E_MTOPS_INSUFFICIENT_MEM;
+        }
+
+        if (size <= 1)
+        {
+            std::cout << "Requested memory is too small. Must be >= 2.";
+            return E_MTOPS_REQ_MEM_TOO_SMALL;
+        }
+
+        long c_ptr = mtops_os_free_list;
+        long p_ptr = H_EOL;
+
+        while (c_ptr != H_EOL)
+        {
+            if (memory[c_ptr + 1] == size)
+            {
+                if (c_ptr == mtops_os_free_list)
+                {
+                    mtops_os_free_list = memory[c_ptr];
+                    memory[c_ptr] = H_EOL;
+                    return c_ptr;
+                }
+                else
+                {
+                    memory[p_ptr] = memory[c_ptr];
+                    memory[c_ptr] = H_EOL;
+                    return c_ptr;
+                }
+            }
+            else if (memory[c_ptr + 1] > size)
+            {
+                if (c_ptr == mtops_os_free_list)
+                {
+                    memory[c_ptr + size] = memory[c_ptr];
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
+                    mtops_os_free_list = c_ptr + size;
+                    return c_ptr;
+                }
+                else
+                {
+                    memory[c_ptr + size] = memory[c_ptr];
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
+                    memory[p_ptr] = c_ptr + size;
+                    memory[c_ptr] = H_EOL;
+                    return c_ptr;
+                }
+            }
+            else
+            {
+                p_ptr = c_ptr;
+                c_ptr = memory[c_ptr];
+            }
+        }
+
+        std::cout << "No memory blocks were large enough for the requested allocation size.";
+        return E_MTOPS_INSUFFICIENT_MEM;
+    }
+
+    word AllocateUserMemory(word size)
+    {
+        if (mtops_user_free_list == H_EOL)
+        {
+            std::cout << "No memory available to allocate.";
+            return E_MTOPS_INSUFFICIENT_MEM;
+        }
+
+        if (size <= 1)
+        {
+            std::cout << "Requested memory is too small. Must be >= 2.";
+            return E_MTOPS_REQ_MEM_TOO_SMALL;
+        }
+
+        long c_ptr = mtops_user_free_list;
+        long p_ptr = H_EOL;
+
+        while (c_ptr != H_EOL)
+        {
+            if (memory[c_ptr + 1] == size)
+            {
+                if (c_ptr == mtops_user_free_list)
+                {
+                    mtops_user_free_list = memory[c_ptr];
+                    memory[c_ptr] = H_EOL;
+                    return c_ptr;
+                }
+                else
+                {
+                    memory[p_ptr] = memory[c_ptr];
+                    memory[c_ptr] = H_EOL;
+                    return c_ptr;
+                }
+            }
+            else if (memory[c_ptr + 1] > size)
+            {
+                if (c_ptr == mtops_user_free_list)
+                {
+                    memory[c_ptr + size] = memory[c_ptr];
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
+                    mtops_user_free_list = c_ptr + size;
+                    return c_ptr;
+                }
+                else
+                {
+                    memory[c_ptr + size] = memory[c_ptr];
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
+                    memory[p_ptr] = c_ptr + size;
+                    memory[c_ptr] = H_EOL;
+                    return c_ptr;
+                }
+            }
+            else
+            {
+                p_ptr = c_ptr;
+                c_ptr = memory[c_ptr];
+            }
+        }
+
+        std::cout << "No memory blocks were large enough for the requested allocation size.";
+        return E_MTOPS_INSUFFICIENT_MEM;
+    }
+
+    word FreeOSMemory(word ptr, word size)
+    {
+        if (OSAddressInRange(ptr))
+        {
+            if (size <= 1)
+            {
+                std::cout << "Requested memory is too small. Must be >= 2.";
+                return E_MTOPS_REQ_MEM_TOO_SMALL;
+            }
+            else
+            {
+                if ((ptr + size) > H_MAX_MEM_ADDR)
+                {
+                    std::cout << "The requested memory size was too large.";
+                    return E_MTOPS_INVALID_MEM_RANGE;
+                }
+                else
+                {
+                    memory[ptr] = mtops_os_free_list;
+                    memory[ptr + 1] = size;
+                    mtops_os_free_list = ptr;
+                    return OK;
+                }
+            }
+        }
+        else
+        {
+            std::cout << "Pointer address is outside of the OS memory.";
+            return E_MTOPS_NOT_MEM_BLOCK;
+        }
+    }
+
+    void PrintPCB(word PCBptr)
+    {
+        using namespace std;
+
+        cout << "\nPCB @ " << PCBptr << ":" << endl;
+
+        //Prints PCB address, Next Pointer Address, PID, State, Priority, PC, and SP values of the PCB.
+        cout << "PCB address = " << PCBptr << ", Next PCB Ptr = " << memory[PCBptr + I_NEXT_POINTER] << ", PID = " << memory[PCBptr + I_PID] << ", State = " << memory[PCBptr + I_STATE] << ", Reason for Waiting = " << memory[PCBptr + I_WAIT_REASON] << ", PC = " << memory[PCBptr + I_R_PC] << ", SP = " << memory[PCBptr + I_R_SP] << ", Priority = " << memory[PCBptr + I_PRIORITY] << ", STACK INFO: Starting Stack Address " << memory[PCBptr + I_STACK_START] << ", Stack Size = " << memory[PCBptr + I_STACK_SIZE] << endl;
+
+        //Prints the GPR values of the PCB.
+        cout << "GPRs:   GPR0: " << memory[PCBptr + I_GPR0] << "   GPR1: " << memory[PCBptr + I_GPR1] << "   GPR2: " << memory[PCBptr + I_GPR2] << "   GPR3: " << memory[PCBptr + I_GPR3] << "   GPR4: " << memory[PCBptr + I_GPR4] << "   GPR5: " << memory[PCBptr + I_GPR5] << "   GPR6: " << memory[PCBptr + I_GPR6] << "   GPR7: " << memory[PCBptr + I_GPR7] << "\n" << endl;
+    }
+
+    word CreateProcess(std::string *filename, word priority)
+    {
+        word pcb_ptr = AllocateOSMemory(H_PCBSIZE);
+        if (pcb_ptr < 0) { return pcb_ptr; }
+
+        InitializePCB(pcb_ptr);
+
+        word status = AbsoluteLoader(*filename);
+        if (status < 0) { return status; }
+
+        memory[pcb_ptr + I_R_PC] = status;
+
+        word u_ptr = AllocateUserMemory(H_STACK_SIZE);
+        if (pcb_ptr < 0) { FreeOSMemory(pcb_ptr, H_PCBSIZE); return pcb_ptr; }
+
+        memory[pcb_ptr + I_STACK_START] = u_ptr;
+        memory[pcb_ptr + I_R_SP] = u_ptr - 1;
+        memory[pcb_ptr + I_STACK_SIZE] = H_STACK_SIZE;
+        memory[pcb_ptr + I_PRIORITY] = priority;
+
+        DumpMemory("\n User Program Area \n", H_PROGRAM_ADDR, H_TOTAL_USER_PROG);
+
+        PrintPCB(pcb_ptr);
     }
 
     /*
