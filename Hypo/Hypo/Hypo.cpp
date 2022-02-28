@@ -29,7 +29,7 @@
 namespace Hypo
 {
     // ------ Debugging stuff. ------
-    const bool h_debug = false;
+    const bool h_debug = true;
     const std::string debug_opmode_descs[] 
         = { "no opmode", "register", "register deferred", "auto increment", "auto decrement", "direct", "immediate" };
 
@@ -45,6 +45,8 @@ namespace Hypo
     constexpr int H_MAX_MEM_ADDR = 9999;
     constexpr int H_TTL = 2000;
     constexpr int H_TOTAL_USER_PROG = 99;
+    constexpr int H_OS_MODE = 1;
+    constexpr int H_USER_MODE = 2;
 
     // MTOPS constants.
     constexpr int H_EOL = -1;
@@ -84,7 +86,8 @@ namespace Hypo
         E_MTOPS_INVALID_FS_NAME = -0x10000,
         E_MTOPS_INVALID_MEM_ADDR = -0x20000,
         E_MTOPS_REQ_MEM_TOO_SMALL = -0x40000,
-        E_MTOPS_INVALID_MEM_RANGE = -0x80000
+        E_MTOPS_INVALID_MEM_RANGE = -0x80000,
+        E_MTOPS_INVALID_SIZE = -0x100000
     };
 
     // Hypo opcodes.
@@ -148,9 +151,24 @@ namespace Hypo
         INT_IO_GETC = 3,
         INT_IO_PUTC = 4
     };
+
+    enum SYSCALLS
+    {
+        PROCESS_CREATE = 1,
+        PROCESS_DELETE = 2,
+        PROCESS_INQ = 3,
+        MEM_ALLOC = 4,
+        MEM_FREE = 5,
+        MSG_SEND = 6,
+        MSG_RECV = 7,
+        IO_GETC = 8,
+        IO_PUTC = 9,
+        TIME_GET = 10,
+        TIME_SET = 11
+    };
     
     // Words are signed 32-bit and should accomodate 6 digits.
-    typedef word word;
+    typedef long word;
 
     // Memory, addresses are simply integers 1-5000.
     word memory[10000];
@@ -638,13 +656,6 @@ namespace Hypo
         return E_MTOPS_INSUFFICIENT_MEM;
     }
 
-    void TerminateProcess(word pcb_ptr)
-    {
-        FreeUserMemory(memory[pcb_ptr + I_STACK_START], memory[pcb_ptr + I_STACK_SIZE]); // Return stack memory using stack start address and stack size in the given PCB.
-
-        FreeOSMemory(pcb_ptr, H_PCBSIZE); // Return PCB memory using the pcb_ptr.
-    }
-
     word AllocateUserMemory(word size)
     {
         if (mtops_user_free_list == H_EOL)
@@ -763,6 +774,13 @@ namespace Hypo
         memory[ptr + 1] = size; //Set the size of this block in UserFreeList to the size given.
         mtops_user_free_list = ptr; //Set the pointer given to be the new front of the UserFreeList.
         return OK;
+    }
+
+    void TerminateProcess(word pcb_ptr)
+    {
+        FreeUserMemory(memory[pcb_ptr + I_STACK_START], memory[pcb_ptr + I_STACK_SIZE]); // Return stack memory using stack start address and stack size in the given PCB.
+
+        FreeOSMemory(pcb_ptr, H_PCBSIZE); // Return PCB memory using the pcb_ptr.
     }
 
     void PrintPCB(word pcb_ptr)
@@ -936,7 +954,7 @@ namespace Hypo
             RQ = memory[RQ + I_NEXT_POINTER];
         }
 
-        memory[pcb_ptr + I_NEXT_POINTER] = H_EOL;
+        memory[pcb_ptr + I_NEXT_POINTER] = H_EOL; // This may be memory[-1].
         return pcb_ptr;
     }
 
@@ -968,39 +986,7 @@ namespace Hypo
         r_gpr[0] = memory[pcb_ptr + I_GPR7];
         r_sp = memory[pcb_ptr + I_R_SP];
         r_pc = memory[pcb_ptr + I_R_PC];
-        r_psr = memory[pcb_ptr + I_R_PSR];
-    }
-
-    word CheckAndProcessInterrupt()
-    {
-        word i_id;
-
-        std::cout << "\n Interrupts: \n 0: No interrupt. \n 1: Run program. \n 2: Shutdown system. \n 3: io_getc \n 4: io_putc \n Interrupt ID:";
-        std::cin >> i_id;
-
-        switch (i_id)
-        {
-        case INT_NO_OP:
-            break;
-        case INT_RUN_PROG:
-            ISRrunProgramInterrupt();
-            break;
-        case INT_SHUTDOWN:
-            ISRshutdownSystem();
-            shutdown_status = true;
-            break;
-        case INT_IO_GETC:
-            ISRinputCompletionInterrupt();
-            break;
-        case INT_IO_PUTC:
-            ISRoutputCompletionInterrupt();
-            break;
-        default:
-            std::cout << "Invalid interrupt signal. This is a no-op...";
-            return INT_NO_OP;
-        }
-
-        return i_id;
+        r_psr = H_USER_MODE;
     }
 
     void ISRrunProgramInterrupt()
@@ -1074,7 +1060,91 @@ namespace Hypo
             TerminateProcess(ptr); //Terminate the current process in the list.
             ptr = WQ; //Set ptr to the next PCB in WQ.
         }
+    }
 
+    word CheckAndProcessInterrupt()
+    {
+        word i_id;
+
+        std::cout << "\n Interrupts: \n 0: No interrupt. \n 1: Run program. \n 2: Shutdown system. \n 3: io_getc \n 4: io_putc \n Interrupt ID:";
+        std::cin >> i_id;
+
+        switch (i_id)
+        {
+        case INT_NO_OP:
+            break;
+        case INT_RUN_PROG:
+            ISRrunProgramInterrupt();
+            break;
+        case INT_SHUTDOWN:
+            ISRshutdownSystem();
+            shutdown_status = true;
+            break;
+        case INT_IO_GETC:
+            ISRinputCompletionInterrupt();
+            break;
+        case INT_IO_PUTC:
+            ISRoutputCompletionInterrupt();
+            break;
+        default:
+            std::cout << "Invalid interrupt signal. This is a no-op...";
+            return INT_NO_OP;
+        }
+
+        return i_id;
+    }
+
+    word MemAllocSystemCall()
+    {
+        long size = r_gpr[2];
+
+        if (size < 2 || size > H_START_SIZE_USER_FREE)
+        {
+            std::cout << "The size of memory requested was out of range.";
+            return E_MTOPS_INVALID_SIZE;
+        }
+
+        r_gpr[1] = AllocateUserMemory(size);
+
+        if (r_gpr[1] < 0) // GPR1 reached an error status.
+        {
+            r_gpr[0] = r_gpr[1];
+        }
+        else
+        {
+            r_gpr[0] = OK;
+        }
+
+        std::cout << "MemAllocSystemCall => GPR0: " << r_gpr[0] << " GPR1: " << r_gpr[1] << " GPR2: " << r_gpr[2] << std::endl;
+
+        return r_gpr[0];
+    }
+
+    word MemFreeSystemCall()
+    {
+        long size = r_gpr[2];
+
+        if (size < 2 || size > H_START_SIZE_USER_FREE)
+        {
+            std::cout << "The size of memory requested was out of range.";
+            return E_MTOPS_INVALID_SIZE;
+        }
+
+        r_gpr[0] = FreeUserMemory(r_gpr[1], size);
+
+        std::cout << "MemFreeSystemCall => GPR0: " << r_gpr[0] << " GPR1: " << r_gpr[1] << " GPR2: " << r_gpr[2] << std::endl;
+    
+        return r_gpr[0];
+    }
+
+    word io_getcSystemCall()
+    {
+        return INT_IO_GETC;
+    }
+
+    word io_putcSystemCall()
+    {
+        return INT_IO_PUTC;
     }
 
     /*
@@ -1089,8 +1159,77 @@ namespace Hypo
     */
     word SystemCall(word id)
     {
-        // TODO: Implement syscalls.
-        return OK;
+        r_psr = H_OS_MODE;
+
+        word status = OK;
+
+        switch (id)
+        {
+        case PROCESS_CREATE:
+        {
+            std::cout << "PROCESS_CREATE not implemented.";
+            break;
+        }
+        case PROCESS_DELETE:
+        {
+            std::cout << "PROCESS_DELETE not implemented.";
+            break;
+        }
+        case PROCESS_INQ:
+        {
+            std::cout << "PROCESS_INQ not implemented.";
+            break;
+        }
+        case MEM_ALLOC:
+        {
+            status = MemAllocSystemCall();
+            break;
+        }
+        case MEM_FREE:
+        {
+            status = MemFreeSystemCall();
+            break;
+        }
+        case MSG_SEND:
+        {
+            std::cout << "MSG_SEND not implemented.";
+            break;
+        }
+        case MSG_RECV:
+        {
+            std::cout << "MSG_RECV not implemented.";
+            break;
+        }
+        case IO_GETC:
+        {
+            status = io_getcSystemCall();
+            break;
+        }
+        case IO_PUTC:
+        {
+            status = io_putcSystemCall();
+            break;
+        }
+        case TIME_GET:
+        {
+            std::cout << "TIME_GET not implemented.";
+            break;
+        }
+        case TIME_SET:
+        {
+            std::cout << "TIME_SET not implemented.";
+            break;
+        }
+        default:
+        {
+            std::cout << "Invalid syscall ID.";
+            return E_MTOPS_INVALID_SYSCALL;
+        }
+        }
+
+        r_psr = H_USER_MODE;
+
+        return status;
     }
 
     /*
