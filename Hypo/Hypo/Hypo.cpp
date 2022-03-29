@@ -56,6 +56,8 @@ namespace Hypo
     constexpr int H_START_SIZE_OS_FREE = 5500;
     constexpr int H_PCBSIZE = 25;
     constexpr int H_DEFAULT_PRIORITY = 128;
+    constexpr int H_TTL_EXP = 2;
+    constexpr int H_HALT = 1;
 
     // State constants.
     constexpr int H_READY_STATE = 1;
@@ -76,6 +78,8 @@ namespace Hypo
         E_STACK_OVERFLOW = -0x100,
         E_STACK_UNDERFLOW = -0x200,
         E_DIVIDE_BY_ZERO = -0x400,
+
+        E_UNKOWN = -0xDEAD,
 
         // MTOPS specific errors.
         E_MTOPS_INVALID_PID = -0x800,
@@ -224,6 +228,9 @@ namespace Hypo
     // Should shutdown status (to process interrupts).
     bool shutdown_status = false;
 
+    // Prototyping some methods.
+    long CreateProcess(std::string* filename, word priority);
+
     bool OSAddressInRange(int addr)
     {
         if (addr > H_MAX_USER_FREE_ADDR && addr <= H_MAX_MEM_ADDR)
@@ -306,6 +313,19 @@ namespace Hypo
         r_psr = 0;
         r_sp = 0;
         r_pc = 0;
+
+        mtops_user_free_list = H_MAX_PROGRAM_ADDR + 1;
+        memory[mtops_user_free_list + I_NEXT_POINTER] = H_EOL;
+        memory[mtops_user_free_list + 1] = H_START_SIZE_USER_FREE;
+
+        mtops_os_free_list = H_MAX_USER_FREE_ADDR + 1;
+        memory[mtops_os_free_list + I_NEXT_POINTER] = H_EOL;
+        memory[mtops_os_free_list + 1] = H_START_SIZE_OS_FREE;
+
+        std::string nullf = "../null.eom";
+        std::string* nullfp = &nullf;
+
+        CreateProcess(nullfp, 0);
     }
 
     /*
@@ -352,7 +372,7 @@ namespace Hypo
 
                 if (ProgramAddressInRange(entrypoint))
                 {
-                    std::cout << "Program successfully loaded into memory.";
+                    std::cout << "Program [" + filename + "] successfully loaded into memory.";
 
                     // Return the first instruction to execute.
                     return h_content;
@@ -796,7 +816,7 @@ namespace Hypo
         cout << "GPRs:   GPR0: " << memory[pcb_ptr + I_GPR0] << "   GPR1: " << memory[pcb_ptr + I_GPR1] << "   GPR2: " << memory[pcb_ptr + I_GPR2] << "   GPR3: " << memory[pcb_ptr + I_GPR3] << "   GPR4: " << memory[pcb_ptr + I_GPR4] << "   GPR5: " << memory[pcb_ptr + I_GPR5] << "   GPR6: " << memory[pcb_ptr + I_GPR6] << "   GPR7: " << memory[pcb_ptr + I_GPR7] << "\n" << endl;
     }
 
-    word CreateProcess(std::string *filename, word priority)
+    long CreateProcess(std::string *filename, word priority)
     {
         word pcb_ptr = AllocateOSMemory(H_PCBSIZE);
         if (pcb_ptr < 0) { return pcb_ptr; }
@@ -1598,20 +1618,89 @@ namespace Hypo
                 return E_INVALID_OPCODE;
             }
         }
+
+        if (should_halt) { return H_HALT; }
+        else if (time_left <= 0) { return H_TTL_EXP; }
+        else { return E_UNKOWN; }
     }
 }
 
 // Begin Hypo process execution.
 int main()
 {
+    Hypo::word status;
+
     Hypo::InitializeSystem();
-    Hypo::word eom_entrypoint = Hypo::AbsoluteLoader("../evensum.eom");
 
-    Hypo::DumpMemory("BEGINNING OF CPU CYCLE", 0, 100);
+    while (!Hypo::shutdown_status)
+    {
+        status = Hypo::CheckAndProcessInterrupt();
+        if (status == Hypo::INT_SHUTDOWN) { break; }
 
-    Hypo::r_pc = eom_entrypoint;
+        std::cout << "\nPre-CPU scheduling RQ: ";
+        Hypo::PrintQueue(Hypo::RQ);
 
-    Hypo::CPU();
+        std::cout << "\nPre-CPU scheduling WQ: ";
+        Hypo::PrintQueue(Hypo::WQ);
 
-    Hypo::DumpMemory("END OF CPU CYCLE", 0, 100);
+        Hypo::DumpMemory("\nMemory pre-CPU scheduling: ", Hypo::H_MAX_PROGRAM_ADDR + 1, 249);
+
+        Hypo::mtops_pcb_ptr = Hypo::SelectProcessFromRQ();
+
+        Hypo::Dispatcher(Hypo::mtops_pcb_ptr);
+
+        std::cout << "\nPost-process selection from RQ: ";
+        Hypo::PrintQueue(Hypo::RQ);
+
+        std::cout << "Dumping memory of running PCB: ";
+        Hypo::PrintPCB(Hypo::mtops_pcb_ptr);
+
+        std::cout << "\nCPU execution starting...\n";
+        status = Hypo::CPU();
+        std::cout << "\n --> CPU execution completed. Status code: " + status;
+
+        Hypo::DumpMemory("\nDynamic memory post-exeuction: ", Hypo::H_MAX_PROGRAM_ADDR + 1, 249);
+
+        if (status == Hypo::H_TTL_EXP)
+        {
+            std::cout << "TTL has timed out, saving context and reinserting to RQ...";
+            Hypo::SaveContext(Hypo::mtops_pcb_ptr);
+            Hypo::InsertIntoRQ(Hypo::mtops_pcb_ptr);
+            Hypo::mtops_pcb_ptr = Hypo::H_EOL;
+        }
+
+        else if (status == Hypo::H_HALT || status < 0)
+        {
+            std::cout << "Halt reached, terminating program...";
+            Hypo::TerminateProcess(Hypo::mtops_pcb_ptr);
+            Hypo::mtops_pcb_ptr = Hypo::H_EOL;
+        }
+        
+        else if (status == Hypo::INT_IO_GETC)
+        {
+            std::cout << "\nIIO_GETC, enter interrupt for PID: " << Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_PID];
+            Hypo::SaveContext(Hypo::mtops_pcb_ptr); //Save CPU Context of running process in its PCB, because the running process is losing control of the CPU.
+            Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_WAIT_REASON] = Hypo::INT_IO_GETC;
+            Hypo::InsertIntoWQ(Hypo::mtops_pcb_ptr); //Insert running process into WQ.
+            Hypo::mtops_pcb_ptr = Hypo::H_EOL; 
+        }
+
+        else if (status == Hypo::INT_IO_PUTC)
+        {
+            std::cout << "\nIO_PUTC, enter interrupt for PID: " << Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_PID];
+            Hypo::SaveContext(Hypo::mtops_pcb_ptr); //Save CPU Context of running process in its PCB, because the running process is losing control of the CPU.
+            Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_WAIT_REASON] = Hypo::INT_IO_PUTC; //Set reason for waiting in the running PCB to 'Output Completion Event'.
+            Hypo::InsertIntoWQ(Hypo::mtops_pcb_ptr); //Insert running process into WQ.
+            Hypo::mtops_pcb_ptr = Hypo::H_EOL; //Set the running PCB ptr to the end of list.
+        }
+
+        else
+        {
+            std::cout << "\nUnknown error. (0xDEAD)";
+            return Hypo::E_UNKOWN;
+        }
+    }
+
+    std::cout << "System is shutting down.";
+    return 0;
 }
