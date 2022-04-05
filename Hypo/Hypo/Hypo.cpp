@@ -1694,7 +1694,7 @@ int main()
 
         std::cout << "\nCPU execution starting...\n";
         status = Hypo::CPU(); // Run CPU.
-        std::cout << "\n --> CPU execution completed. Status code: " + status << std::endl;
+        std::cout << "\n --> CPU execution completed. Status code: " + (int) status << std::endl;
 
         Hypo::DumpMemory("\nDynamic memory post-exeuction: ", Hypo::H_MAX_PROGRAM_ADDR + 1, 249);
 

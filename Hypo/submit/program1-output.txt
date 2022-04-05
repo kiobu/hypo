@@ -1,0 +1,168 @@
+Program [../null.eom] successfully loaded into memory.
+
+ User Program Area
+
+
+GPRs:      G0     G1     G2     G3     G4     G5     G6     G7     SP     PC
+           0      0      0      0      0      0      0      0      0      0
+
+Address:   +0     +1     +2     +3     +4     +5     +6     +7     +8     +9
+0          60000  0      0      0      0      0      0      0      0      0
+10         0      0      0      0      0      0      0      0      0      0
+20         0      0      0      0      0      0      0      0      0      0
+30         0      0      0      0      0      0      0      0      0      0
+40         0      0      0      0      0      0      0      0      0      0
+50         0      0      0      0      0      0      0      0      0      0
+60         0      0      0      0      0      0      0      0      0      0
+70         0      0      0      0      0      0      0      0      0      0
+80         0      0      0      0      0      0      0      0      0      0
+90         0      0      0      0      0      0      0      0      0      0
+Clock: 0
+PSR: 0
+
+PCB @ 4500:
+PCB address = 4500, Next PCB Ptr = -1, PID = 1, State = 1, Reason for Waiting = 0, PC = 0, SP = 2499, Priority = 0, STACK INFO: Starting Stack Address 2500, Stack Size = 9
+GPRs:   GPR0: 0   GPR1: 0   GPR2: 0   GPR3: 0   GPR4: 0   GPR5: 0   GPR6: 0   GPR7: 0
+
+
+ Interrupts:
+ 0: No interrupt.
+ 1: Run program.
+ 2: Shutdown system.
+ 3: io_getc
+ 4: io_putc
+ Interrupt ID:1
+
+Enter filename: ../hw2-1.eom
+Program [../hw2-1.eom] successfully loaded into memory.
+
+ User Program Area
+
+
+GPRs:      G0     G1     G2     G3     G4     G5     G6     G7     SP     PC
+           0      0      0      0      0      0      0      0      0      0
+
+Address:   +0     +1     +2     +3     +4     +5     +6     +7     +8     +9
+0          60000  0      0      51260  100    126000 4      91000  11     60000
+10         29     51711  51360  2      51460  10     53713  21260  1      11314
+20         53713  21260  1      81250  19     51260  100    126000 5      0
+30         0      0      0      0      0      0      0      0      0      0
+40         0      0      0      0      0      0      0      0      0      0
+50         0      0      0      0      0      0      0      0      0      0
+60         0      0      0      0      0      0      0      0      0      0
+70         0      0      0      0      0      0      0      0      0      0
+80         0      0      0      0      0      0      0      0      0      0
+90         0      0      0      0      0      0      0      0      0      0
+Clock: 0
+PSR: 0
+
+PCB @ 4525:
+PCB address = 4525, Next PCB Ptr = -1, PID = 2, State = 1, Reason for Waiting = 0, PC = 3, SP = 2508, Priority = 128, STACK INFO: Starting Stack Address 2509, Stack Size = 9
+GPRs:   GPR0: 0   GPR1: 0   GPR2: 0   GPR3: 0   GPR4: 0   GPR5: 0   GPR6: 0   GPR7: 0
+
+
+Pre-CPU scheduling RQ:
+PCB @ 4525:
+PCB address = 4525, Next PCB Ptr = 4500, PID = 2, State = 1, Reason for Waiting = 0, PC = 3, SP = 2508, Priority = 128, STACK INFO: Starting Stack Address 2509, Stack Size = 9
+GPRs:   GPR0: 0   GPR1: 0   GPR2: 0   GPR3: 0   GPR4: 0   GPR5: 0   GPR6: 0   GPR7: 0
+
+
+PCB @ 4500:
+PCB address = 4500, Next PCB Ptr = -1, PID = 1, State = 1, Reason for Waiting = 0, PC = 0, SP = 2499, Priority = 0, STACK INFO: Starting Stack Address 2500, Stack Size = 9
+GPRs:   GPR0: 0   GPR1: 0   GPR2: 0   GPR3: 0   GPR4: 0   GPR5: 0   GPR6: 0   GPR7: 0
+
+
+Pre-CPU scheduling WQ: Empty list.
+
+Memory pre-CPU scheduling:
+
+GPRs:      G0     G1     G2     G3     G4     G5     G6     G7     SP     PC
+           0      0      0      0      0      0      0      0      0      0
+
+Address:   +0     +1     +2     +3     +4     +5     +6     +7     +8     +9
+2500       -1     2000   0      0      0      0      0      0      0      -1
+2510       1991   0      0      0      0      0      0      0      -1     1982
+2520       0      0      0      0      0      0      0      0      0      0
+2530       0      0      0      0      0      0      0      0      0      0
+2540       0      0      0      0      0      0      0      0      0      0
+2550       0      0      0      0      0      0      0      0      0      0
+2560       0      0      0      0      0      0      0      0      0      0
+2570       0      0      0      0      0      0      0      0      0      0
+2580       0      0      0      0      0      0      0      0      0      0
+2590       0      0      0      0      0      0      0      0      0      0
+2600       0      0      0      0      0      0      0      0      0      0
+2610       0      0      0      0      0      0      0      0      0      0
+2620       0      0      0      0      0      0      0      0      0      0
+2630       0      0      0      0      0      0      0      0      0      0
+2640       0      0      0      0      0      0      0      0      0      0
+2650       0      0      0      0      0      0      0      0      0      0
+2660       0      0      0      0      0      0      0      0      0      0
+2670       0      0      0      0      0      0      0      0      0      0
+2680       0      0      0      0      0      0      0      0      0      0
+2690       0      0      0      0      0      0      0      0      0      0
+2700       0      0      0      0      0      0      0      0      0      0
+2710       0      0      0      0      0      0      0      0      0      0
+2720       0      0      0      0      0      0      0      0      0      0
+2730       0      0      0      0      0      0      0      0      0      0
+2740       0      0      0      0      0      0      0      0      0      0
+Clock: 0
+PSR: 0
+
+Post-process selection from RQ:
+PCB @ 4500:
+PCB address = 4500, Next PCB Ptr = -1, PID = 1, State = 1, Reason for Waiting = 0, PC = 0, SP = 2499, Priority = 0, STACK INFO: Starting Stack Address 2500, Stack Size = 9
+GPRs:   GPR0: 0   GPR1: 0   GPR2: 0   GPR3: 0   GPR4: 0   GPR5: 0   GPR6: 0   GPR7: 0
+
+Dumping memory of running PCB:
+PCB @ 4525:
+PCB address = 4525, Next PCB Ptr = -1, PID = 2, State = 1, Reason for Waiting = 0, PC = 3, SP = 2508, Priority = 128, STACK INFO: Starting Stack Address 2509, Stack Size = 9
+GPRs:   GPR0: 0   GPR1: 0   GPR2: 0   GPR3: 0   GPR4: 0   GPR5: 0   GPR6: 0   GPR7: 0
+
+
+CPU execution starting...
+MemAllocSystemCall => GPR0: 0 GPR1: 2518 GPR2: 100
+MemFreeSystemCall => GPR0: 1 GPR1: 2518 GPR2: 100
+ --> CPU execution completed. Status code:
+
+
+Dynamic memory post-exeuction:
+
+GPRs:      G0     G1     G2     G3     G4     G5     G6     G7     SP     PC
+           1      2518   100    992    10     0      0      2618   2508   30
+
+Address:   +0     +1     +2     +3     +4     +5     +6     +7     +8     +9
+2500       -1     2000   0      0      0      0      0      0      0      -1
+2510       1991   0      0      0      0      0      0      0      2618   100
+2520       22     32     42     52     62     72     82     92     102    112
+2530       122    132    142    152    162    172    182    192    202    212
+2540       222    232    242    252    262    272    282    292    302    312
+2550       322    332    342    352    362    372    382    392    402    412
+2560       422    432    442    452    462    472    482    492    502    512
+2570       522    532    542    552    562    572    582    592    602    612
+2580       622    632    642    652    662    672    682    692    702    712
+2590       722    732    742    752    762    772    782    792    802    812
+2600       822    832    842    852    862    872    882    892    902    912
+2610       922    932    942    952    962    972    982    992    -1     1882
+2620       0      0      0      0      0      0      0      0      0      0
+2630       0      0      0      0      0      0      0      0      0      0
+2640       0      0      0      0      0      0      0      0      0      0
+2650       0      0      0      0      0      0      0      0      0      0
+2660       0      0      0      0      0      0      0      0      0      0
+2670       0      0      0      0      0      0      0      0      0      0
+2680       0      0      0      0      0      0      0      0      0      0
+2690       0      0      0      0      0      0      0      0      0      0
+2700       0      0      0      0      0      0      0      0      0      0
+2710       0      0      0      0      0      0      0      0      0      0
+2720       0      0      0      0      0      0      0      0      0      0
+2730       0      0      0      0      0      0      0      0      0      0
+2740       0      0      0      0      0      0      0      0      0      0
+Clock: 1243
+PSR: 2
+Halt reached, terminating program...
+ Interrupts:
+ 0: No interrupt.
+ 1: Run program.
+ 2: Shutdown system.
+ 3: io_getc
+ 4: io_putc
+ Interrupt ID:
