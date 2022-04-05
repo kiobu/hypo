@@ -29,7 +29,7 @@
 namespace Hypo
 {
     // ------ Debugging stuff. ------
-    const bool h_debug = true;
+    const bool h_debug = false;
     const std::string debug_opmode_descs[] 
         = { "no opmode", "register", "register deferred", "auto increment", "auto decrement", "direct", "immediate" };
 
@@ -230,6 +230,7 @@ namespace Hypo
 
     // Prototyping some methods.
     long CreateProcess(std::string* filename, word priority);
+    word InsertIntoRQ(word pcb_ptr);
 
     bool OSAddressInRange(int addr)
     {
@@ -324,7 +325,6 @@ namespace Hypo
 
         std::string nullf = "../null.eom";
         std::string* nullfp = &nullf;
-
         CreateProcess(nullfp, 0);
     }
 
@@ -490,7 +490,7 @@ namespace Hypo
         case H_OPMODE::REGISTER_DEF:
             *op_addr = r_gpr[op_reg];
 
-            if (ProgramAddressInRange(*op_addr))
+            if (UserFreeAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -508,7 +508,7 @@ namespace Hypo
         case H_OPMODE::AUTO_INC:
             *op_addr = r_gpr[op_reg];
 
-            if (ProgramAddressInRange(*op_addr))
+            if (UserFreeAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -532,7 +532,7 @@ namespace Hypo
 
             *op_addr = r_gpr[op_reg];
 
-            if (ProgramAddressInRange(*op_addr))
+            if (UserFreeAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -552,7 +552,7 @@ namespace Hypo
             // Get address from r_pc.
             *op_addr = memory[r_pc++];
 
-            if (ProgramAddressInRange(*op_addr))
+            if (UserFreeAddressInRange(*op_addr))
             {
                 *op_value = memory[*op_addr];
             }
@@ -701,12 +701,14 @@ namespace Hypo
                 {
                     mtops_user_free_list = memory[c_ptr];
                     memory[c_ptr] = H_EOL;
+                    if (h_debug) { std::cout << "\nPointer returned [1]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
                 else
                 {
                     memory[p_ptr] = memory[c_ptr];
                     memory[c_ptr] = H_EOL;
+                    if (h_debug) { std::cout << "\nPointer returned [2]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
             }
@@ -717,6 +719,7 @@ namespace Hypo
                     memory[c_ptr + size] = memory[c_ptr];
                     memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
                     mtops_user_free_list = c_ptr + size;
+                    if (h_debug) { std::cout << "\nPointer returned [3]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
                 else
@@ -725,6 +728,7 @@ namespace Hypo
                     memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
                     memory[p_ptr] = c_ptr + size;
                     memory[c_ptr] = H_EOL;
+                    if (h_debug) { std::cout << "\nPointer returned [4]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
             }
@@ -839,6 +843,9 @@ namespace Hypo
         DumpMemory("\n User Program Area \n", H_PROGRAM_ADDR, H_TOTAL_USER_PROG);
 
         PrintPCB(pcb_ptr);
+        InsertIntoRQ(pcb_ptr);
+
+        return OK;
     }
 
     long PrintQueue(long queue_ptr)
@@ -961,7 +968,7 @@ namespace Hypo
             currentpcb_ptr = memory[currentpcb_ptr + I_NEXT_POINTER];
         }
 
-        std::cout << "No process process with ID " << this_pid << " could be found.";
+        std::cout << "No process with ID " << this_pid << " could be found.";
         return E_MTOPS_INVALID_PID; // TODO: Replace with new error.
     }
 
@@ -997,13 +1004,13 @@ namespace Hypo
     void Dispatcher(long pcb_ptr)
     {
         r_gpr[0] = memory[pcb_ptr + I_GPR0];
-        r_gpr[0] = memory[pcb_ptr + I_GPR1];
-        r_gpr[0] = memory[pcb_ptr + I_GPR2];
-        r_gpr[0] = memory[pcb_ptr + I_GPR3];
-        r_gpr[0] = memory[pcb_ptr + I_GPR4];
-        r_gpr[0] = memory[pcb_ptr + I_GPR5];
-        r_gpr[0] = memory[pcb_ptr + I_GPR6];
-        r_gpr[0] = memory[pcb_ptr + I_GPR7];
+        r_gpr[1] = memory[pcb_ptr + I_GPR1];
+        r_gpr[2] = memory[pcb_ptr + I_GPR2];
+        r_gpr[3] = memory[pcb_ptr + I_GPR3];
+        r_gpr[4] = memory[pcb_ptr + I_GPR4];
+        r_gpr[5] = memory[pcb_ptr + I_GPR5];
+        r_gpr[6] = memory[pcb_ptr + I_GPR6];
+        r_gpr[7] = memory[pcb_ptr + I_GPR7];
         r_sp = memory[pcb_ptr + I_R_SP];
         r_pc = memory[pcb_ptr + I_R_PC];
         r_psr = H_USER_MODE;
@@ -1028,12 +1035,14 @@ namespace Hypo
         std::cout << "ISR designed for input completion has begun running, please specify the PID of the process that the input is being completed for: ";
         std::cin >> PID; //Read the PID of the process we're completing input for.
 
+        PID = (int) PID;
+
         word pcb_ptr = SearchAndRemovePCBfromWQ(PID); //Search WQ to find the PCB that has the given PID, return value is stored in pcb_ptr.
         if (pcb_ptr > 0) //Only performs this section with a valid PCB address.
         {
             std::cout << "Please enter a character to store: ";
             std::cin >> i_char; //Read one character from standard input device keyboard.
-            memory[pcb_ptr + I_GPR1] = (word) i_char; //Store the character in the GPR in the PCB. Use typecasting from char to word data types.
+            memory[pcb_ptr + I_GPR1] = (int) i_char; //Store the character in the GPR in the PCB. Use typecasting from char to word data types.
             memory[pcb_ptr + I_STATE] = H_READY_STATE; //Set process state to Ready in the PCB.
             std::cout << "The character " << i_char << " was successfully INPUTTED.";
             InsertIntoRQ(pcb_ptr); //Insert PCB into ready queue.
@@ -1047,6 +1056,8 @@ namespace Hypo
 
         std::cout << "ISR designed for output completion has begun running, please specify the PID of the process that the output is being completed for: ";
         std::cin >> PID; //Read the PID of the process we're completing input for.
+
+        PID = (int) PID;
 
         word pcb_ptr = SearchAndRemovePCBfromWQ(PID); //Search WQ to find the PCB that has the given PID, return value is stored in pcb_ptr.
         if (pcb_ptr > 0) //Only performs this section with a valid PCB address.
@@ -1124,7 +1135,7 @@ namespace Hypo
             return E_MTOPS_INVALID_SIZE;
         }
 
-        r_gpr[1] = AllocateUserMemory(size);
+        r_gpr[1] = AllocateUserMemory(size); // Puts 2518, 18 over max addr, causing error
 
         if (r_gpr[1] < 0) // GPR1 reached an error status.
         {
@@ -1132,7 +1143,7 @@ namespace Hypo
         }
         else
         {
-            r_gpr[0] = OK;
+            r_gpr[0] = 0; // BranchOnZero = OK
         }
 
         std::cout << "MemAllocSystemCall => GPR0: " << r_gpr[0] << " GPR1: " << r_gpr[1] << " GPR2: " << r_gpr[2] << std::endl;
@@ -1482,7 +1493,7 @@ namespace Hypo
                     }
                     else
                     {
-                        std::cout << "Invalid address for program counter on BRANCH_ON_MINUS: " << r_pc;
+                        std::cout << "\nInvalid address for program counter on BRANCH_ON_MINUS: " << r_pc << std::endl;
                         return E_INVALID_PC;
                     }
                 }
@@ -1583,7 +1594,7 @@ namespace Hypo
                 }
                 else
                 {
-                    std::cout << "Popping " << memory[r_sp] << " from the stack.";
+                    std::cout << "Popping " << memory[r_sp] << " from the stack." << std::endl;;
                     op1_addr = memory[r_sp];
                     r_sp--;
                 }
@@ -1657,7 +1668,7 @@ int main()
 
         std::cout << "\nCPU execution starting...\n";
         status = Hypo::CPU();
-        std::cout << "\n --> CPU execution completed. Status code: " + status;
+        std::cout << "\n --> CPU execution completed. Status code: " + status << std::endl;
 
         Hypo::DumpMemory("\nDynamic memory post-exeuction: ", Hypo::H_MAX_PROGRAM_ADDR + 1, 249);
 
