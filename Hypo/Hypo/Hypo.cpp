@@ -613,59 +613,60 @@ namespace Hypo
         memory[pcb_ptr + I_PRIORITY] = H_DEFAULT_PRIORITY;
     }
 
+    // Allocate memory for the OS.
     word AllocateOSMemory(word size)
     {
-        if (mtops_os_free_list == H_EOL)
+        if (mtops_os_free_list == H_EOL) // If there is no free memory (-1)
         {
             std::cout << "No memory available to allocate.";
             return E_MTOPS_INSUFFICIENT_MEM;
         }
 
-        if (size <= 1)
+        if (size <= 1) // If size is 1 or less, return, since 2 at minimum are required.
         {
             std::cout << "Requested memory is too small. Must be >= 2.";
             return E_MTOPS_REQ_MEM_TOO_SMALL;
         }
 
-        word c_ptr = mtops_os_free_list;
-        word p_ptr = H_EOL;
+        word c_ptr = mtops_os_free_list; // c_ptr = free OS block
+        word p_ptr = H_EOL; // previous pointer = end of list
 
         while (c_ptr != H_EOL)
         {
-            if (memory[c_ptr + 1] == size)
+            if (memory[c_ptr + 1] == size) // If the size of the block = requested size, use this block
             {
-                if (c_ptr == mtops_os_free_list)
+                if (c_ptr == mtops_os_free_list) // First block is correct size
                 {
-                    mtops_os_free_list = memory[c_ptr];
+                    mtops_os_free_list = memory[c_ptr]; // Adjust OS block pointer.
                     memory[c_ptr] = H_EOL;
-                    return c_ptr;
+                    return c_ptr; // Return block starting pointer
                 }
-                else
+                else // Size is exact but not the first block.
                 {
-                    memory[p_ptr] = memory[c_ptr];
+                    memory[p_ptr] = memory[c_ptr]; 
                     memory[c_ptr] = H_EOL;
-                    return c_ptr;
+                    return c_ptr; // Return starting block pointer.
                 }
             }
-            else if (memory[c_ptr + 1] > size)
+            else if (memory[c_ptr + 1] > size) // Block is larger than requested
             {
-                if (c_ptr == mtops_os_free_list)
+                if (c_ptr == mtops_os_free_list) // First block 
                 {
-                    memory[c_ptr + size] = memory[c_ptr];
-                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
+                    memory[c_ptr + size] = memory[c_ptr]; // Move next block pointer up until requested size is matched
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size; // Adjust block so it is the size it was - requested size.
                     mtops_os_free_list = c_ptr + size;
-                    return c_ptr;
+                    return c_ptr; // Return starting block pointer
                 }
-                else
+                else // Block was found but it was not the first block.
                 {
-                    memory[c_ptr + size] = memory[c_ptr];
-                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
-                    memory[p_ptr] = c_ptr + size;
+                    memory[c_ptr + size] = memory[c_ptr]; // Move next block pointer up until requested size is matched
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size; // Adjust block so it is the size it was - requested size.
+                    memory[p_ptr] = c_ptr + size; // Adjust next pointer.
                     memory[c_ptr] = H_EOL;
-                    return c_ptr;
+                    return c_ptr; // Return starting block pointer.
                 }
             }
-            else
+            else // Block is too small, continue iteration.
             {
                 p_ptr = c_ptr;
                 c_ptr = memory[c_ptr];
@@ -676,6 +677,7 @@ namespace Hypo
         return E_MTOPS_INSUFFICIENT_MEM;
     }
 
+    // Allocate memory for the user.
     word AllocateUserMemory(word size)
     {
         if (mtops_user_free_list == H_EOL)
@@ -695,44 +697,44 @@ namespace Hypo
 
         while (c_ptr != H_EOL)
         {
-            if (memory[c_ptr + 1] == size)
+            if (memory[c_ptr + 1] == size) // Block found of requested size.
             {
-                if (c_ptr == mtops_user_free_list)
+                if (c_ptr == mtops_user_free_list) // First block is the correct size.
                 {
-                    mtops_user_free_list = memory[c_ptr];
+                    mtops_user_free_list = memory[c_ptr]; // Adjust user free list pointer to match the next user block pointer.
                     memory[c_ptr] = H_EOL;
                     if (h_debug) { std::cout << "\nPointer returned [1]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
-                else
+                else // Block found is correct size, but is not the first block.
                 {
-                    memory[p_ptr] = memory[c_ptr];
+                    memory[p_ptr] = memory[c_ptr]; // Set pointer of previous block to pointer of current block
                     memory[c_ptr] = H_EOL;
                     if (h_debug) { std::cout << "\nPointer returned [2]: " + c_ptr << std::endl; }
-                    return c_ptr;
+                    return c_ptr; 
                 }
             }
-            else if (memory[c_ptr + 1] > size)
+            else if (memory[c_ptr + 1] > size) // Size is greater than requested.
             {
-                if (c_ptr == mtops_user_free_list)
+                if (c_ptr == mtops_user_free_list) // First block meets requested size.
                 {
-                    memory[c_ptr + size] = memory[c_ptr];
-                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
-                    mtops_user_free_list = c_ptr + size;
+                    memory[c_ptr + size] = memory[c_ptr]; // Move next block pointer up to the requested size.
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size; // Set block size to original block size - requested block size.
+                    mtops_user_free_list = c_ptr + size; // Adjust beginning of user free list to adjusted block.
                     if (h_debug) { std::cout << "\nPointer returned [3]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
-                else
+                else // Block meets requested size but it is not the first block.
                 {
-                    memory[c_ptr + size] = memory[c_ptr];
-                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size;
-                    memory[p_ptr] = c_ptr + size;
+                    memory[c_ptr + size] = memory[c_ptr]; // Move next block pointer up to request size.
+                    memory[c_ptr + size + 1] = memory[c_ptr + 1] - size; // Set block size to original block size - requested block size.
+                    memory[p_ptr] = c_ptr + size; // Set previous pointer block to current pointer + size.
                     memory[c_ptr] = H_EOL;
                     if (h_debug) { std::cout << "\nPointer returned [4]: " + c_ptr << std::endl; }
                     return c_ptr;
                 }
             }
-            else
+            else // Current block is too small, move to next iteration.
             {
                 p_ptr = c_ptr;
                 c_ptr = memory[c_ptr];
@@ -743,27 +745,28 @@ namespace Hypo
         return E_MTOPS_INSUFFICIENT_MEM;
     }
 
+    // Take location in memory and free it to OS free list. May error based on requested size and memory freed out of range.
     word FreeOSMemory(word ptr, word size)
     {
         if (OSAddressInRange(ptr))
         {
             if (size <= 1)
             {
-                std::cout << "Requested memory is too small. Must be >= 2.";
+                std::cout << "Requested memory is too small. Must be >= 2."; // Minimum alloc is 2, so return error if < 2.
                 return E_MTOPS_REQ_MEM_TOO_SMALL;
             }
-            else
+            else // Size is correct.
             {
-                if ((ptr + size) > H_MAX_MEM_ADDR)
+                if ((ptr + size) > H_MAX_MEM_ADDR) // The size would take pointer out of bounds, so error.
                 {
                     std::cout << "The requested memory size was too large.";
                     return E_MTOPS_INVALID_MEM_RANGE;
                 }
                 else
                 {
-                    memory[ptr] = mtops_os_free_list;
-                    memory[ptr + 1] = size;
-                    mtops_os_free_list = ptr;
+                    memory[ptr] = mtops_os_free_list; // Set pointer of free block to the leading address in OS free list.
+                    memory[ptr + 1] = size; // Set size of block to given size.
+                    mtops_os_free_list = ptr; // Set given pointer to be the leading address in OS free list.
                     return OK;
                 }
             }
@@ -820,25 +823,34 @@ namespace Hypo
         cout << "GPRs:   GPR0: " << memory[pcb_ptr + I_GPR0] << "   GPR1: " << memory[pcb_ptr + I_GPR1] << "   GPR2: " << memory[pcb_ptr + I_GPR2] << "   GPR3: " << memory[pcb_ptr + I_GPR3] << "   GPR4: " << memory[pcb_ptr + I_GPR4] << "   GPR5: " << memory[pcb_ptr + I_GPR5] << "   GPR6: " << memory[pcb_ptr + I_GPR6] << "   GPR7: " << memory[pcb_ptr + I_GPR7] << "\n" << endl;
     }
 
+    // Create process given a filename and allocated a PCB for it. Also defines stack space for the program and dumps user program locations and memory addresses + contents.
+    // May error based on memory size given and file I/O errors.
+    //
+    //     Errors if: 
+    // requested size is too small.
+    // can't open file.
+    // not enough memory available.
+    // invalid PC.
+    // invalid mem address.
     long CreateProcess(std::string *filename, word priority)
     {
-        word pcb_ptr = AllocateOSMemory(H_PCBSIZE);
-        if (pcb_ptr < 0) { return pcb_ptr; }
+        word pcb_ptr = AllocateOSMemory(H_PCBSIZE); // Allocate space for the PCB, returns leading address.
+        if (pcb_ptr < 0) { return pcb_ptr; } // Error code.
 
-        InitializePCB(pcb_ptr);
+        InitializePCB(pcb_ptr); // Init the PCB.
 
-        word status = AbsoluteLoader(*filename);
-        if (status < 0) { return status; }
+        word status = AbsoluteLoader(*filename); // Load the file into memory.
+        if (status < 0) { return status; } // Error code.
 
-        memory[pcb_ptr + I_R_PC] = status;
+        memory[pcb_ptr + I_R_PC] = status; // Set PC value in PCB.
 
-        word u_ptr = AllocateUserMemory(H_STACK_SIZE);
-        if (pcb_ptr < 0) { FreeOSMemory(pcb_ptr, H_PCBSIZE); return pcb_ptr; }
+        word u_ptr = AllocateUserMemory(H_STACK_SIZE); // Allocate user memory.
+        if (pcb_ptr < 0) { FreeOSMemory(pcb_ptr, H_PCBSIZE); return pcb_ptr; } // Error code.
 
-        memory[pcb_ptr + I_STACK_START] = u_ptr;
-        memory[pcb_ptr + I_R_SP] = u_ptr - 1;
-        memory[pcb_ptr + I_STACK_SIZE] = H_STACK_SIZE;
-        memory[pcb_ptr + I_PRIORITY] = priority;
+        memory[pcb_ptr + I_STACK_START] = u_ptr; // Set beginning stack addr in PCB.
+        memory[pcb_ptr + I_R_SP] = u_ptr - 1; // Set stack pointer.
+        memory[pcb_ptr + I_STACK_SIZE] = H_STACK_SIZE; // Set stack size.
+        memory[pcb_ptr + I_PRIORITY] = priority; // Set prioerity.
 
         DumpMemory("\n User Program Area \n", H_PROGRAM_ADDR, H_TOTAL_USER_PROG);
 
@@ -848,6 +860,7 @@ namespace Hypo
         return OK;
     }
 
+    // Print data from the queue given a pointer.
     long PrintQueue(long queue_ptr)
     {
         long c_pcb_ptr = queue_ptr;
@@ -862,13 +875,14 @@ namespace Hypo
         while (c_pcb_ptr != H_EOL)
         {
             PrintPCB(c_pcb_ptr);
-            c_pcb_ptr = memory[c_pcb_ptr + I_NEXT_POINTER];
+            c_pcb_ptr = memory[c_pcb_ptr + I_NEXT_POINTER]; // Next pointer.
         }
 
         return OK;
 
     }
 
+    // Insert into the waiting queue given a pcb pointer.
     word InsertIntoWQ(word pcb_ptr)
     {
         if (pcb_ptr < 0 || pcb_ptr > H_MAX_MEM_ADDR)
@@ -885,6 +899,7 @@ namespace Hypo
 
     }
 
+    // Insert into the ready queue given a PCB pointer.
     word InsertIntoRQ(word pcb_ptr)
     {
         word p_ptr = H_EOL;
@@ -935,6 +950,7 @@ namespace Hypo
 
     }
 
+    // Get the PCB for a PID from the WQ.
     word SearchAndRemovePCBfromWQ(word this_pid)
     {
         word currentpcb_ptr = WQ;
@@ -972,6 +988,7 @@ namespace Hypo
         return E_MTOPS_INVALID_PID; // TODO: Replace with new error.
     }
 
+    // Get a process from the RQ.
     long SelectProcessFromRQ()
     {
         long pcb_ptr = RQ;
@@ -985,6 +1002,7 @@ namespace Hypo
         return pcb_ptr;
     }
 
+    // Save the context of the GPRs when control is switched for the CPU.
     void SaveContext(long pcb_ptr)
     {
         memory[pcb_ptr + I_GPR0] = r_gpr[0];
@@ -1001,6 +1019,7 @@ namespace Hypo
         memory[pcb_ptr + I_R_PSR] = r_psr;
     }
 
+    // Restore saved GPR values.
     void Dispatcher(long pcb_ptr)
     {
         r_gpr[0] = memory[pcb_ptr + I_GPR0];
@@ -1016,6 +1035,7 @@ namespace Hypo
         r_psr = H_USER_MODE;
     }
 
+    // Run the interrupt for loading an EOM program.
     void ISRrunProgramInterrupt()
     {
         std::string programToRun;
@@ -1027,6 +1047,7 @@ namespace Hypo
 
     }
 
+    // Run the interrupt for handing input characters.
     void ISRinputCompletionInterrupt()
     {
         word PID;
@@ -1049,6 +1070,7 @@ namespace Hypo
         }
     } 
 
+    // Run the interrupt for handling output.
     void ISRoutputCompletionInterrupt()
     {
         word PID;
@@ -1070,6 +1092,7 @@ namespace Hypo
 
     }
 
+    // Gracefully shutdown the machine.
     void ISRshutdownSystem()
     {
         //Terminate all processes in RQ one by one.
@@ -1093,6 +1116,7 @@ namespace Hypo
         }
     }
 
+    // Handle an interrupt and process the input.
     word CheckAndProcessInterrupt()
     {
         word i_id;
@@ -1125,6 +1149,7 @@ namespace Hypo
         return i_id;
     }
 
+    // Run the memory allocation syscall. May return errors based on invalid size.
     word MemAllocSystemCall()
     {
         long size = r_gpr[2];
@@ -1151,6 +1176,7 @@ namespace Hypo
         return r_gpr[0];
     }
 
+    // Run the free memory system call. May return erorrs if memory requested was out of range.
     word MemFreeSystemCall()
     {
         long size = r_gpr[2];
@@ -1639,14 +1665,14 @@ namespace Hypo
 // Begin Hypo process execution.
 int main()
 {
-    Hypo::word status;
+    Hypo::word status; // Init status.
 
     Hypo::InitializeSystem();
 
-    while (!Hypo::shutdown_status)
+    while (!Hypo::shutdown_status) // Loop while machine is running.
     {
-        status = Hypo::CheckAndProcessInterrupt();
-        if (status == Hypo::INT_SHUTDOWN) { break; }
+        status = Hypo::CheckAndProcessInterrupt(); // Process interrupt for next user step.
+        if (status == Hypo::INT_SHUTDOWN) { break; } // Break out of loop if shutdown interrupt is entered.
 
         std::cout << "\nPre-CPU scheduling RQ: ";
         Hypo::PrintQueue(Hypo::RQ);
@@ -1656,7 +1682,7 @@ int main()
 
         Hypo::DumpMemory("\nMemory pre-CPU scheduling: ", Hypo::H_MAX_PROGRAM_ADDR + 1, 249);
 
-        Hypo::mtops_pcb_ptr = Hypo::SelectProcessFromRQ();
+        Hypo::mtops_pcb_ptr = Hypo::SelectProcessFromRQ(); // Select a process from the RQ to dispatch and load.
 
         Hypo::Dispatcher(Hypo::mtops_pcb_ptr);
 
@@ -1667,12 +1693,12 @@ int main()
         Hypo::PrintPCB(Hypo::mtops_pcb_ptr);
 
         std::cout << "\nCPU execution starting...\n";
-        status = Hypo::CPU();
+        status = Hypo::CPU(); // Run CPU.
         std::cout << "\n --> CPU execution completed. Status code: " + status << std::endl;
 
         Hypo::DumpMemory("\nDynamic memory post-exeuction: ", Hypo::H_MAX_PROGRAM_ADDR + 1, 249);
 
-        if (status == Hypo::H_TTL_EXP)
+        if (status == Hypo::H_TTL_EXP) // Time has expired.
         {
             std::cout << "TTL has timed out, saving context and reinserting to RQ...";
             Hypo::SaveContext(Hypo::mtops_pcb_ptr);
@@ -1680,14 +1706,14 @@ int main()
             Hypo::mtops_pcb_ptr = Hypo::H_EOL;
         }
 
-        else if (status == Hypo::H_HALT || status < 0)
+        else if (status == Hypo::H_HALT || status < 0) // Halt reached.
         {
             std::cout << "Halt reached, terminating program...";
             Hypo::TerminateProcess(Hypo::mtops_pcb_ptr);
             Hypo::mtops_pcb_ptr = Hypo::H_EOL;
         }
         
-        else if (status == Hypo::INT_IO_GETC)
+        else if (status == Hypo::INT_IO_GETC) // Input IO started.
         {
             std::cout << "\nIIO_GETC, enter interrupt for PID: " << Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_PID];
             Hypo::SaveContext(Hypo::mtops_pcb_ptr); //Save CPU Context of running process in its PCB, because the running process is losing control of the CPU.
@@ -1696,7 +1722,7 @@ int main()
             Hypo::mtops_pcb_ptr = Hypo::H_EOL; 
         }
 
-        else if (status == Hypo::INT_IO_PUTC)
+        else if (status == Hypo::INT_IO_PUTC)  // Output IO started.
         {
             std::cout << "\nIO_PUTC, enter interrupt for PID: " << Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_PID];
             Hypo::SaveContext(Hypo::mtops_pcb_ptr); //Save CPU Context of running process in its PCB, because the running process is losing control of the CPU.
