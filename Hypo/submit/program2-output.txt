@@ -46,7 +46,7 @@ Address:   +0     +1     +2     +3     +4     +5     +6     +7     +8     +9
 0          60000  0      0      0      0      0      0      0      0      0
 10         0      0      0      0      0      0      0      0      0      0
 20         0      0      0      0      0      0      0      0      0      0
-30         51160  10     106000 1337   106000 1338   106000 1339   106000 1340
+30         51160  40     106000 1337   106000 1338   106000 1339   106000 1340
 40         115000 2700   115000 2700   115000 2700   115000 2700   21160  1
 50         81150  32     0      0      0      0      0      0      0      0
 60         0      0      0      0      0      0      0      0      0      0
@@ -160,6 +160,126 @@ Popping 1340 from the stack.
 Popping 1339 from the stack.
 Popping 1338 from the stack.
 Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
+Popping 1340 from the stack.
+Popping 1339 from the stack.
+Popping 1338 from the stack.
+Popping 1337 from the stack.
  --> CPU execution completed. Status code:
 
 
@@ -194,7 +314,7 @@ Address:   +0     +1     +2     +3     +4     +5     +6     +7     +8     +9
 2720       0      0      0      0      0      0      0      0      0      0
 2730       0      0      0      0      0      0      0      0      0      0
 2740       0      0      0      0      0      0      0      0      0      0
-Clock: 244
+Clock: 934
 PSR: 2
 Halt reached, terminating program...
  Interrupts:
