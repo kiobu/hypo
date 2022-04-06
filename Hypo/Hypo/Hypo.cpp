@@ -79,7 +79,7 @@ namespace Hypo
         E_STACK_UNDERFLOW = -0x200,
         E_DIVIDE_BY_ZERO = -0x400,
 
-        E_UNKOWN = -0xDEAD,
+        E_UNKNOWN = -0xDEAD,
 
         // MTOPS specific errors.
         E_MTOPS_INVALID_PID = -0x800,
@@ -1126,22 +1126,22 @@ namespace Hypo
 
         switch (i_id)
         {
-        case INT_NO_OP:
+        case INT_NO_OP: // Interrupt 0 is a no-op.
             break;
-        case INT_RUN_PROG:
+        case INT_RUN_PROG: // Interrupt 1 is to load and run a program.
             ISRrunProgramInterrupt();
             break;
-        case INT_SHUTDOWN:
+        case INT_SHUTDOWN: // Interrupt 2 is to shut down the system.
             ISRshutdownSystem();
             shutdown_status = true;
             break;
-        case INT_IO_GETC:
+        case INT_IO_GETC: // Interrupt 3 is to get input.
             ISRinputCompletionInterrupt();
             break;
-        case INT_IO_PUTC:
+        case INT_IO_PUTC: // Interrupt 4 is to get output.
             ISRoutputCompletionInterrupt();
             break;
-        default:
+        default: // All other interrupts are invalid, so no-op.
             std::cout << "Invalid interrupt signal. This is a no-op...";
             return INT_NO_OP;
         }
@@ -1154,13 +1154,13 @@ namespace Hypo
     {
         long size = r_gpr[2];
 
-        if (size < 2 || size > H_START_SIZE_USER_FREE)
+        if (size < 2 || size > H_START_SIZE_USER_FREE) // Size must be 2 at minimum.
         {
             std::cout << "The size of memory requested was out of range.";
             return E_MTOPS_INVALID_SIZE;
         }
 
-        r_gpr[1] = AllocateUserMemory(size); // Puts 2518, 18 over max addr, causing error
+        r_gpr[1] = AllocateUserMemory(size); // Allocate user memory and put starting pointer addr in GPR1.
 
         if (r_gpr[1] < 0) // GPR1 reached an error status.
         {
@@ -1181,13 +1181,13 @@ namespace Hypo
     {
         long size = r_gpr[2];
 
-        if (size < 2 || size > H_START_SIZE_USER_FREE)
+        if (size < 2 || size > H_START_SIZE_USER_FREE) // Minimum size is two, maximum size must be < 2000.
         {
             std::cout << "The size of memory requested was out of range.";
             return E_MTOPS_INVALID_SIZE;
         }
 
-        r_gpr[0] = FreeUserMemory(r_gpr[1], size);
+        r_gpr[0] = FreeUserMemory(r_gpr[1], size); // Free user memory and place pointer addr into GPR0.
 
         std::cout << "MemFreeSystemCall => GPR0: " << r_gpr[0] << " GPR1: " << r_gpr[1] << " GPR2: " << r_gpr[2] << std::endl;
     
@@ -1284,7 +1284,7 @@ namespace Hypo
         }
         }
 
-        r_psr = H_USER_MODE;
+        r_psr = H_USER_MODE; // Set PSR to user mode.
 
         return status;
     }
@@ -1656,9 +1656,9 @@ namespace Hypo
             }
         }
 
-        if (should_halt) { return H_HALT; }
+        if (should_halt)         { return H_HALT; }
         else if (time_left <= 0) { return H_TTL_EXP; }
-        else { return E_UNKOWN; }
+        else                     { return E_UNKNOWN; }
     }
 }
 
@@ -1684,7 +1684,7 @@ int main()
 
         Hypo::mtops_pcb_ptr = Hypo::SelectProcessFromRQ(); // Select a process from the RQ to dispatch and load.
 
-        Hypo::Dispatcher(Hypo::mtops_pcb_ptr);
+        Hypo::Dispatcher(Hypo::mtops_pcb_ptr); // Restore context given the current PCB pointer.
 
         std::cout << "\nPost-process selection from RQ: ";
         Hypo::PrintQueue(Hypo::RQ);
@@ -1701,15 +1701,15 @@ int main()
         if (status == Hypo::H_TTL_EXP) // Time has expired.
         {
             std::cout << "TTL has timed out, saving context and reinserting to RQ...";
-            Hypo::SaveContext(Hypo::mtops_pcb_ptr);
-            Hypo::InsertIntoRQ(Hypo::mtops_pcb_ptr);
+            Hypo::SaveContext(Hypo::mtops_pcb_ptr); // Save CPU context because the process is giving up CPU.
+            Hypo::InsertIntoRQ(Hypo::mtops_pcb_ptr); // Insert the current PCB into the RQ.
             Hypo::mtops_pcb_ptr = Hypo::H_EOL;
         }
 
         else if (status == Hypo::H_HALT || status < 0) // Halt reached.
         {
             std::cout << "Halt reached, terminating program...";
-            Hypo::TerminateProcess(Hypo::mtops_pcb_ptr);
+            Hypo::TerminateProcess(Hypo::mtops_pcb_ptr); // End the process.
             Hypo::mtops_pcb_ptr = Hypo::H_EOL;
         }
         
@@ -1728,13 +1728,13 @@ int main()
             Hypo::SaveContext(Hypo::mtops_pcb_ptr); //Save CPU Context of running process in its PCB, because the running process is losing control of the CPU.
             Hypo::memory[Hypo::mtops_pcb_ptr + Hypo::I_WAIT_REASON] = Hypo::INT_IO_PUTC; //Set reason for waiting in the running PCB to 'Output Completion Event'.
             Hypo::InsertIntoWQ(Hypo::mtops_pcb_ptr); //Insert running process into WQ.
-            Hypo::mtops_pcb_ptr = Hypo::H_EOL; //Set the running PCB ptr to the end of list.
+            Hypo::mtops_pcb_ptr = Hypo::H_EOL; // Set the running PCB ptr to the end of list.
         }
 
         else
         {
-            std::cout << "\nUnknown error. (0xDEAD)";
-            return Hypo::E_UNKOWN;
+            std::cout << "\nUnknown error. (0xDEAD)"; // Unknown programming error.
+            return Hypo::E_UNKNOWN;
         }
     }
 
