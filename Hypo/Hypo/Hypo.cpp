@@ -2,12 +2,7 @@
 * 
 * --------------------------------
 * | Hypothetical Decimal Machine |
-* --------------------------------
-* 
-* Author: C.D.
-* ID: 301020137
-* HW: #1
-* Date: February 1st, 2022
+* -------------------------
 * 
 * The hypothetical decimal machine is a simulation of a decimal-based processor that
 * simulates hardware by executing instructions from a proprietary executable object
